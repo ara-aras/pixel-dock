@@ -22,8 +22,10 @@ export interface AerieTab {
   id: string;
   /** Short text shown on the tab. */
   label: string;
-  /** Single glyph shown before the label. */
+  /** Single glyph shown before the label in the glass theme. */
   icon: string;
+  /** Material Symbols name shown in the Material theme (must be bundled in MaterialIcon.tsx). */
+  symbol: string;
   /** Full name for screen readers. */
   ariaLabel: string;
   Component: ComponentType<AerieTabProps>;

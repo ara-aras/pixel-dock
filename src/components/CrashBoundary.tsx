@@ -37,7 +37,7 @@ export class CrashBoundary extends Component<CrashBoundaryProps, CrashBoundarySt
   render() {
     if (this.state.hasError) {
       return (
-        <div className="w-screen h-screen flex items-center justify-center bg-black text-white p-6 text-center">
+        <div className="w-screen h-screen flex items-center justify-center bg-black text-fixed-white p-6 text-center">
           <div className="max-w-md flex flex-col items-center gap-4">
             <h1 className="text-lg font-semibold">PILLAR recovered from an error</h1>
             <p className="text-white/70 text-sm">

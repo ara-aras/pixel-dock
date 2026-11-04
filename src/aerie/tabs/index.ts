@@ -11,7 +11,7 @@ export type { AerieTab, AerieTabProps } from "./types";
  * so upstream merges stay small.
  */
 export const AERIE_TABS: AerieTab[] = [
-  { id: "calc", label: "Calc", icon: "=", ariaLabel: "Calculator", Component: CalcTab },
-  { id: "convert", label: "Convert", icon: "⇄", ariaLabel: "Unit converter", Component: ConvertTab },
-  { id: "aerie", label: "Aerie", icon: "✦", ariaLabel: "Aerie options", Component: AerieSettingsTab },
+  { id: "calc", label: "Calc", icon: "=", symbol: "calculate", ariaLabel: "Calculator", Component: CalcTab },
+  { id: "convert", label: "Convert", icon: "⇄", symbol: "swap_horiz", ariaLabel: "Unit converter", Component: ConvertTab },
+  { id: "aerie", label: "Aerie", icon: "✦", symbol: "palette", ariaLabel: "Aerie options", Component: AerieSettingsTab },
 ];

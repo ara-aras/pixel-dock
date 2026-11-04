@@ -208,9 +208,9 @@ function ToastCard({
       className="relative w-[340px] rounded-2xl cursor-pointer overflow-hidden select-none"
       style={{
         background:
-          "linear-gradient(135deg, rgba(22,22,26,0.96) 0%, rgba(32,32,38,0.94) 50%, rgba(18,18,22,0.97) 100%)",
+          "var(--aerie-toast-bg, linear-gradient(135deg, rgba(22,22,26,0.96) 0%, rgba(32,32,38,0.94) 50%, rgba(18,18,22,0.97) 100%))",
         boxShadow: [
-          `0 0 0 1px rgba(255,255,255,0.07)`,
+          `0 0 0 1px rgb(var(--md-on-surface) / 0.07)`,
           `0 8px 32px rgba(0,0,0,0.4)`,
           `0 2px 8px rgba(0,0,0,0.3)`,
           `0 0 20px rgba(${accent.rgb}, 0.08)`,
@@ -251,7 +251,7 @@ function ToastCard({
       <div
         className="absolute inset-0 pointer-events-none rounded-2xl"
         style={{
-          background: "linear-gradient(180deg, rgba(255,255,255,0.06) 0%, transparent 40%)",
+          background: "var(--aerie-sheen, linear-gradient(180deg, rgb(var(--md-on-surface) / 0.06) 0%, transparent 40%))",
         }}
       />
 

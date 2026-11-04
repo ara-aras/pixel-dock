@@ -96,7 +96,7 @@ export function PrismModule({
           className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-3 pt-3 pb-3 space-y-2.5"
           style={{ 
             scrollbarWidth: 'thin', 
-            scrollbarColor: 'rgba(255,255,255,0.2) transparent',
+            scrollbarColor: 'rgb(var(--md-on-surface) / 0.2) transparent',
             WebkitOverflowScrolling: 'touch'
           }}
         >

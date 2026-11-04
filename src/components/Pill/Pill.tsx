@@ -39,6 +39,11 @@ import { createPillThemeTokens, resolveReducedMotion } from "./themeTokens";
 const TIMER_NOTIFICATION_TITLE = "PILLAR Timer Complete";
 
 import { useVisibilityEvents } from "../../aerie/hooks/useVisibilityEvents";
+import { useAerieTheme } from "../../aerie/theme/useAerieTheme";
+import { createMaterialPillTokens } from "../../aerie/theme/pillTokens";
+import { MATERIAL_SPRINGS } from "../../aerie/theme/motion";
+import { MaterialIcon, isMaterialIconName } from "../../aerie/theme/MaterialIcon";
+import { AerieThemeContext } from "../../aerie/theme/ThemeContext";
 
 // Size of the idle pill when the "slim line" look is on (logical px).
 const SLIM_IDLE = { width: 72, height: 6, borderRadius: 3 } as const;
@@ -330,6 +335,16 @@ export function Pill() {
   // Effective accent color: album art override or user setting
   const effectiveAccentColor = (appearance.active.useAlbumAccent && albumAccentColor) ? albumAccentColor : appearance.active.accentColor;
 
+  // Aerie theme: Material 3 (Pixel) palette from wallpaper/album/Windows accent, or
+  // PILLAR's glass look. `uiAccent` is the accent every module should draw with.
+  const aerieTheme = useAerieTheme(appSettings.aerie, effectiveAccentColor, albumAccentColor);
+  const isMaterial = aerieTheme.isMaterial;
+  const uiAccent = aerieTheme.accentHex;
+  const aerieThemeContext = useMemo(
+    () => ({ isMaterial, isDark: aerieTheme.isDark }),
+    [isMaterial, aerieTheme.isDark],
+  );
+
   // Auto-pause other sessions when a new session starts playing
   const prevMediaTitleRef = useRef<string | null>(null);
   useEffect(() => {
@@ -393,7 +408,9 @@ export function Pill() {
   // Whether to show notification badge in the pill
   const hasNotificationBadge = appSettings.layout.idle_indicators.notifications && notifications.length > 0 &&
     (notificationPhase === "showing" || notificationPhase === "idle");
-  const themeTokens = createPillThemeTokens({ ...appearance.active, accentColor: effectiveAccentColor });
+  const themeTokens = isMaterial
+    ? createMaterialPillTokens(appearance.active.opacity, uiAccent)
+    : createPillThemeTokens({ ...appearance.active, accentColor: effectiveAccentColor });
   const reducedMotion = resolveReducedMotion(appSettings.motion.reduced_motion_override);
   const visibleTabs = EXPANDED_TAB_CONFIG.filter((tab) => isTabVisible(appSettings.layout.visible_tabs, tab.id));
   const safeTabs = visibleTabs.length > 0 ? visibleTabs : EXPANDED_TAB_CONFIG;
@@ -516,7 +533,11 @@ export function Pill() {
 
   // Snappy spring so hover-in and unhover-out feel the same. When reduced motion is
   // requested, use a near-instant spring so the pill resize snaps without a bouncy morph.
-  const pillSpring = reducedMotion ? { stiffness: 1000, damping: 100, mass: 0.1 } : springConfig.snappy;
+  const pillSpring = reducedMotion
+    ? { stiffness: 1000, damping: 100, mass: 0.1 }
+    : isMaterial
+      ? MATERIAL_SPRINGS.spatialDefault
+      : springConfig.snappy;
   const width = useSpring(pillDimensions.boot.width, pillSpring);
   const height = useSpring(pillDimensions.boot.height, pillSpring);
   const borderRadiusTop = useSpring(pillDimensions.boot.borderRadius, pillSpring);
@@ -536,7 +557,7 @@ export function Pill() {
   const boxShadow = useTransform(
     shadowOpacity,
     (v) =>
-      `0 4px 24px rgba(0, 0, 0, ${v}), 0 8px 48px rgba(0, 0, 0, ${v * 0.5}), inset 0 1px 1px rgba(255, 255, 255, 0.1)`
+      `0 4px 24px rgba(0, 0, 0, ${v}), 0 8px 48px rgba(0, 0, 0, ${v * 0.5}), inset 0 1px 1px var(--aerie-inset-highlight, rgba(255, 255, 255, 0.1))`
   );
 
   // Boot animation sequence
@@ -787,8 +808,17 @@ export function Pill() {
   }, [notifications, announceListChange]);
 
   // Keep the active tab visible when the strip scrolls (many tabs, arrow-key navigation).
+  // Scroll only the strip itself: scrollIntoView() would also scroll overflow-hidden
+  // ancestors and shove the whole panel sideways.
+  const tabStripRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
-    document.getElementById(`tab-${activeTab}`)?.scrollIntoView({ inline: "nearest", block: "nearest" });
+    const strip = tabStripRef.current;
+    const tab = document.getElementById(`tab-${activeTab}`);
+    if (!strip || !tab) return;
+    const left = tab.offsetLeft; // strip is `relative`, so this is strip-relative
+    const right = left + tab.offsetWidth;
+    if (left < strip.scrollLeft) strip.scrollTo({ left: left - 4 });
+    else if (right > strip.scrollLeft + strip.clientWidth) strip.scrollTo({ left: right - strip.clientWidth + 4 });
   }, [activeTab, isExpanded]);
 
   // Announce tab changes
@@ -1015,6 +1045,7 @@ export function Pill() {
   }, [isExpanded, handleClickOutside]);
 
   return (
+    <AerieThemeContext.Provider value={aerieThemeContext}>
     <>
       {/* Live regions render here (Pill's own useScreenReader instance) so every
           announce() call below is actually spoken. Kept outside the pill body so
@@ -1032,13 +1063,18 @@ export function Pill() {
         width,
         height,
         borderRadius,
-        backdropFilter,
-        WebkitBackdropFilter: backdropFilter,
+        // Material surfaces are solid tonal colour: no glass blur (also cheaper on the GPU).
+        backdropFilter: isMaterial ? "none" : backdropFilter,
+        WebkitBackdropFilter: isMaterial ? "none" : backdropFilter,
         boxShadow,
         overflow: "visible",
         background: isBooting && bootPhase === "dot"
-          ? "radial-gradient(circle, rgba(255,255,255,0.8) 0%, rgba(200,200,200,0.6) 100%)"
-          : `linear-gradient(135deg, var(--pillar-surface-primary) 0%, var(--pillar-surface-secondary) 60%, rgba(15, 15, 18, 0.95) 100%)`,
+          ? isMaterial
+            ? "rgb(var(--md-primary))"
+            : "radial-gradient(circle, rgba(255,255,255,0.8) 0%, rgba(200,200,200,0.6) 100%)"
+          : isMaterial
+            ? "var(--pillar-surface-primary)"
+            : `linear-gradient(135deg, var(--pillar-surface-primary) 0%, var(--pillar-surface-secondary) 60%, rgba(15, 15, 18, 0.95) 100%)`,
         border: `1px solid ${themeTokens.borderColor}`,
       }}
       initial={{ opacity: 0, scale: 0 }}
@@ -1071,7 +1107,7 @@ export function Pill() {
       <motion.div
         className="absolute inset-0 rounded-[inherit] pointer-events-none"
         style={{
-          background: "linear-gradient(180deg, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0) 50%)",
+          background: "var(--aerie-sheen, linear-gradient(180deg, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0) 50%))",
           borderRadius,
         }}
       />
@@ -1080,7 +1116,7 @@ export function Pill() {
       <motion.div
         className="absolute inset-0 rounded-[inherit] pointer-events-none"
         style={{
-          border: "1px solid rgba(255, 255, 255, 0.08)",
+          border: "1px solid rgb(var(--md-on-surface) / 0.08)",
           borderRadius,
         }}
       />
@@ -1089,7 +1125,7 @@ export function Pill() {
       <motion.div
         className="absolute inset-x-0 top-0 h-[1px] rounded-t-[inherit] pointer-events-none"
         style={{
-          background: "linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.15) 50%, transparent 100%)",
+          background: "var(--aerie-shimmer, linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.15) 50%, transparent 100%))",
           borderRadius,
         }}
       />
@@ -1226,15 +1262,15 @@ export function Pill() {
                 >
                   {time.length > 0 ? (
                     <>
-                      <span style={{ color: effectiveAccentColor, textShadow: `0 0 10px ${hexToRgba(effectiveAccentColor, 0.5)}` }}>
+                      <span style={{ color: uiAccent, textShadow: isMaterial ? "none" : `0 0 10px ${hexToRgba(uiAccent, 0.5)}` }}>
                         {time[0]}
                       </span>
-                      <span style={{ color: "#ffffff", textShadow: "0 1px 2px rgba(0,0,0,0.3)" }}>
+                      <span style={{ color: "rgb(var(--md-on-surface))", textShadow: "var(--aerie-text-shadow, 0 1px 2px rgba(0,0,0,0.3))" }}>
                         {time.slice(1)}
                       </span>
                     </>
                   ) : (
-                    <span style={{ color: "#ffffff" }}>{time}</span>
+                    <span style={{ color: "rgb(var(--md-on-surface))" }}>{time}</span>
                   )}
                 </motion.span>
               )}
@@ -1299,7 +1335,7 @@ export function Pill() {
               <div className="flex items-center gap-pill-md">
                 <div
                   className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0"
-                  style={{ background: `linear-gradient(to bottom right, ${hexToRgba(effectiveAccentColor, 0.4)}, ${hexToRgba(effectiveAccentColor, 0.2)})` }}
+                  style={{ background: `linear-gradient(to bottom right, ${hexToRgba(uiAccent, 0.4)}, ${hexToRgba(uiAccent, 0.2)})` }}
                 >
                   <span className="text-white text-pill-xs font-bold">P</span>
                 </div>
@@ -1316,7 +1352,12 @@ export function Pill() {
 
             {/* Tab Navigation */}
             <div 
-              className="flex gap-pill-xs mb-1.5 p-pill-xs bg-pill-muted-lightest rounded-pill-md overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+              ref={tabStripRef}
+              className={`relative flex mb-1.5 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden ${
+                isMaterial
+                  ? "gap-1 p-1 bg-surface-container-high rounded-full"
+                  : "gap-pill-xs p-pill-xs bg-pill-muted-lightest rounded-pill-md"
+              }`}
               role="tablist"
               aria-label="PILLAR modules"
             >
@@ -1329,10 +1370,16 @@ export function Pill() {
                   aria-controls={`panel-${tab.id}`}
                   aria-label={tab.id === "notifications" && notifications.length > 0 ? `Notifications (${notifications.length} unread)` : tab.ariaLabel}
                   tabIndex={activeTab === tab.id ? 0 : -1}
-                  className={`relative flex-1 min-w-fit whitespace-nowrap py-1 px-0.5 rounded-md text-[12px] font-medium transition-colors ${
-                    activeTab === tab.id 
-                      ? "bg-white/15 text-white" 
-                      : "text-white/80 hover:text-white"
+                  className={`relative flex-1 min-w-fit whitespace-nowrap text-[12px] font-medium transition-colors ${
+                    isMaterial
+                      ? `py-1 px-2 rounded-full ${
+                          activeTab === tab.id
+                            ? "text-on-secondary-container"
+                            : "text-on-surface-variant hover:bg-on-surface/[0.08]"
+                        }`
+                      : `py-1 px-1.5 rounded-md ${
+                          activeTab === tab.id ? "bg-white/15 text-white" : "text-white/80 hover:text-white"
+                        }`
                   }`}
                   onClick={() => setActiveTab(tab.id)}
                   onKeyDown={(e) => {
@@ -1343,11 +1390,35 @@ export function Pill() {
                   }}
                   {...microInteractions.button}
                 >
-                  <span className="mr-0.5" aria-hidden="true">{tab.icon}</span>
-                  {tab.label}
+                  {isMaterial ? (
+                    <>
+                      {/* Pixel-style selection pill that slides between tabs. */}
+                      {activeTab === tab.id && (
+                        <motion.span
+                          layoutId="aerie-tab-indicator"
+                          className="absolute inset-0 rounded-full bg-secondary-container"
+                          transition={reducedMotion ? { duration: 0 } : MATERIAL_SPRINGS.spatialFast}
+                          aria-hidden="true"
+                        />
+                      )}
+                      <span className="relative inline-flex items-center gap-1">
+                        {isMaterialIconName(tab.symbol) && (
+                          <MaterialIcon name={tab.symbol} filled={activeTab === tab.id} size={16} />
+                        )}
+                        {tab.label}
+                      </span>
+                    </>
+                  ) : (
+                    <>
+                      <span className="mr-0.5" aria-hidden="true">{tab.icon}</span>
+                      {tab.label}
+                    </>
+                  )}
                   {tab.hasBadge && notifications.length > 0 && (
-                    <span 
-                      className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-red-500 rounded-full text-[10px] text-white font-medium flex items-center justify-center"
+                    <span
+                      className={`absolute -top-0.5 -right-0.5 w-4 h-4 rounded-full text-[10px] font-medium flex items-center justify-center ${
+                        isMaterial ? "bg-error text-on-error" : "bg-red-500 text-fixed-white"
+                      }`}
                       aria-label={`${notifications.length} notifications`}
                     >
                       {notifications.length > 9 ? "9+" : notifications.length}
@@ -1407,7 +1478,7 @@ export function Pill() {
                       recentSources={recentSources}
                       timeline={timeline}
                       playbackInfo={playbackInfo}
-                      accentColor={effectiveAccentColor}
+                      accentColor={uiAccent}
                       onPlayPause={playPause}
                       onNext={mediaNext}
                       onPrevious={mediaPrevious}
@@ -1511,7 +1582,7 @@ export function Pill() {
                     transition={{ duration: panelTransitionDuration }}
                   >
                     {/* Live CPU/RAM monitor — only polls while this tab is open. */}
-                    <SystemMonitor enabled={activeTab === "settings"} accentColor={effectiveAccentColor} />
+                    <SystemMonitor enabled={activeTab === "settings"} accentColor={uiAccent} />
                     <QuickSettings
                       volume={volume}
                       onVolumeChange={setVolume}
@@ -1617,7 +1688,7 @@ export function Pill() {
                       transition={{ duration: panelTransitionDuration }}
                     >
                       <Component
-                        accentColor={effectiveAccentColor}
+                        accentColor={uiAccent}
                         settings={appSettings}
                         updateSettings={updateSettings}
                       />
@@ -1698,5 +1769,6 @@ export function Pill() {
 
     </motion.div>
     </>
+    </AerieThemeContext.Provider>
   );
 }

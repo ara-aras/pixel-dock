@@ -43,6 +43,16 @@ export interface AerieSettingsData {
   hover_peek: boolean;
   /** "slim" shrinks the idle pill to a thin strip. */
   idle_style: "pill" | "slim";
+  /** "material" = Pixel-style Material 3; "glass" = PILLAR's original dark glass. */
+  theme: "material" | "glass";
+  /** Where the Material seed colour comes from. "album" falls back to wallpaper when nothing plays. */
+  color_source: "wallpaper" | "album" | "windows" | "custom";
+  /** Seed for color_source "custom", as #rrggbb. */
+  custom_seed: string;
+  /** Material light/dark. "system" follows the Windows app mode. */
+  color_mode: "system" | "dark" | "light";
+  /** Pixel's palette styles: tonal (default), vibrant, expressive. */
+  scheme_style: "tonal" | "vibrant" | "expressive";
 }
 
 export interface AppSettings {
@@ -91,6 +101,11 @@ export const SETTINGS_DEFAULTS: AppSettings = {
   aerie: {
     hover_peek: true,
     idle_style: "pill",
+    theme: "material",
+    color_source: "wallpaper",
+    custom_seed: "#6750A4",
+    color_mode: "system",
+    scheme_style: "tonal",
   },
 };
 

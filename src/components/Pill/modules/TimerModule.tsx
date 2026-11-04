@@ -39,7 +39,7 @@ export function TimerProgressRing({
         cy={size / 2}
         r={radius}
         fill="none"
-        stroke="rgba(255, 255, 255, 0.1)"
+        style={{ stroke: "rgb(var(--md-on-surface) / 0.1)" }}
         strokeWidth={strokeWidth}
       />
       {/* Progress arc */}
@@ -90,7 +90,7 @@ export function TimerCompact({ timer, formatTime, progress }: TimerCompactProps)
       <span 
         className="text-[13px] font-medium tabular-nums"
         style={{ 
-          color: timer.isComplete ? "#ef4444" : "#ffffff",
+          color: timer.isComplete ? "#ef4444" : "rgb(var(--md-on-surface))",
           textShadow: timer.isComplete ? "0 0 8px rgba(239, 68, 68, 0.5)" : undefined,
         }}
       >
@@ -216,7 +216,7 @@ export function TimerExpanded({
               cy={ringSize / 2}
               r={r}
               fill="none"
-              stroke="rgba(255, 255, 255, 0.1)"
+              style={{ stroke: "rgb(var(--md-on-surface) / 0.1)" }}
               strokeWidth={3}
             />
             <motion.circle

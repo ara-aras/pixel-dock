@@ -2,6 +2,7 @@ import { motion } from "motion/react";
 import { useState, useCallback, useRef, useMemo } from "react";
 import type { MediaInfo, MediaTimeline, MediaPlaybackInfo } from "../../../hooks/useMediaSession";
 import { microInteractions, gpuLayerHints } from "../animations";
+import { useAerieThemeContext } from "../../../aerie/theme/ThemeContext";
 
 // =============================================================================
 // Media Playing Indicator (animated bars for idle/hover)
@@ -300,6 +301,7 @@ export function MediaExpanded({
   onPauseOthers,
   onSeek,
 }: MediaExpandedProps) {
+  const { isMaterial } = useAerieThemeContext();
   // Memoize source label to avoid recalculation
   const sourceLabel = useMemo(() => {
     if (!media) return null;
@@ -374,7 +376,7 @@ export function MediaExpanded({
             className="w-7 h-7 rounded-full flex items-center justify-center"
             aria-label={playbackInfo?.isShuffle ? "Disable shuffle" : "Enable shuffle"}
             style={{
-              color: playbackInfo?.isShuffle ? (accentColor || "#3B82F6") : "rgba(255,255,255,0.5)",
+              color: playbackInfo?.isShuffle ? (accentColor || "#3B82F6") : "rgb(var(--md-on-surface) / 0.5)",
             }}
             whileHover={microInteractions.icon.whileHover}
             whileTap={microInteractions.icon.whileTap}
@@ -391,7 +393,7 @@ export function MediaExpanded({
           aria-label="Previous track"
           whileHover={microInteractions.icon.whileHover}
           whileTap={microInteractions.icon.whileTap}
-          style={{ backgroundColor: "rgba(255, 255, 255, 0.1)" }}
+          style={{ backgroundColor: "rgb(var(--md-on-surface) / 0.1)" }}
           transition={microInteractions.icon.transition}
           onClick={onPrevious}
           onKeyDown={(e) => {
@@ -408,9 +410,16 @@ export function MediaExpanded({
 
         {/* Play/Pause */}
         <motion.button
-          className="w-12 h-12 rounded-full flex items-center justify-center text-white"
+          className={`w-12 h-12 flex items-center justify-center ${
+            // Pixel media controls: filled primary-container button, rounded square.
+            isMaterial ? "rounded-2xl bg-primary-container text-on-primary-container" : "rounded-full text-white"
+          }`}
           aria-label={media.isPlaying ? "Pause playback" : "Play playback"}
-          style={{ backgroundColor: accentColor ? `${accentColor}40` : "rgba(255, 255, 255, 0.2)" }}
+          style={
+            isMaterial
+              ? undefined
+              : { backgroundColor: accentColor ? `${accentColor}40` : "rgb(var(--md-on-surface) / 0.2)" }
+          }
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}
           onClick={onPlayPause}
@@ -438,7 +447,7 @@ export function MediaExpanded({
           aria-label="Next track"
           whileHover={microInteractions.icon.whileHover}
           whileTap={microInteractions.icon.whileTap}
-          style={{ backgroundColor: "rgba(255, 255, 255, 0.1)" }}
+          style={{ backgroundColor: "rgb(var(--md-on-surface) / 0.1)" }}
           transition={microInteractions.icon.transition}
           onClick={onNext}
           onKeyDown={(e) => {
@@ -459,7 +468,7 @@ export function MediaExpanded({
             className="w-7 h-7 rounded-full flex items-center justify-center"
             aria-label={`Repeat: ${playbackInfo?.repeatMode || "none"}`}
             style={{
-              color: playbackInfo?.repeatMode !== "none" ? (accentColor || "#3B82F6") : "rgba(255,255,255,0.5)",
+              color: playbackInfo?.repeatMode !== "none" ? (accentColor || "#3B82F6") : "rgb(var(--md-on-surface) / 0.5)",
             }}
             whileHover={microInteractions.icon.whileHover}
             whileTap={microInteractions.icon.whileTap}

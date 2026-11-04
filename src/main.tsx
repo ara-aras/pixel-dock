@@ -2,7 +2,12 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 import { useEffect } from "react";
 import App from "./App";
+// Aerie theme: default colour variables first (no flash), then PILLAR's styles,
+// then Material shape/type overrides. Roboto Flex is bundled locally (CSP: no remote fonts).
+import "./aerie/theme/defaults.css";
+import "@fontsource-variable/roboto-flex/full.css";
 import "./index.css";
+import "./aerie/theme/material.css";
 import { CrashBoundary } from "./components/CrashBoundary";
 import { useCrashRecovery } from "./hooks/useCrashRecovery";
 

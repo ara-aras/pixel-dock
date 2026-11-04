@@ -167,7 +167,7 @@ export function TimerMiniProgress({ progress, width, height }: TimerMiniProgress
         height={rectHeight}
         rx={rx}
         fill="none"
-        stroke="rgba(255, 255, 255, 0.05)"
+        style={{ stroke: "rgb(var(--md-on-surface) / 0.05)" }}
         strokeWidth={strokeWidth}
       />
       <motion.rect

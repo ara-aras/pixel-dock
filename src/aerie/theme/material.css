@@ -1,0 +1,56 @@
+/* Aerie Material 3 (Pixel) styling. Active when <html data-theme="material">.
+   Colours come from --md-* variables (src/aerie/theme/useAerieTheme.ts);
+   this file only sets what colours cannot: shape, type and focus. */
+
+/* Material 3 shape scale. Tailwind's rounded-* classes read these (tailwind.config.js);
+   in the glass theme they are unset and PILLAR's original radii apply. */
+:root[data-theme="material"] {
+  --aerie-radius-default: 8px; /* small */
+  --aerie-radius-md: 12px; /* medium */
+  --aerie-radius-lg: 16px; /* large */
+  --aerie-radius-xl: 20px;
+  --aerie-radius-2xl: 24px;
+  --aerie-radius-pill-sm: 12px;
+  --aerie-radius-pill-md: 16px;
+  --aerie-radius-pill-lg: 20px;
+  --aerie-radius-pill-xl: 24px;
+  --aerie-radius-pill-2xl: 28px; /* extra large */
+  --aerie-radius-pill-3xl: 32px;
+}
+
+/* Pixel surfaces are flat tonal colour: switch off PILLAR's glass sheens and shimmer.
+   Components read these with a glass fallback, e.g. var(--aerie-sheen, linear-gradient(...)). */
+:root[data-theme="material"] {
+  --aerie-sheen: none;
+  --aerie-shimmer: none;
+  --aerie-text-shadow: none;
+  --aerie-inset-highlight: transparent;
+  --aerie-toast-bg: rgb(var(--md-surface-container-high));
+}
+
+:root[data-theme="material"] body {
+  font-family: "Roboto Flex Variable", "Segoe UI Variable", system-ui, sans-serif;
+  font-optical-sizing: auto;
+  /* Roboto Flex's width axis: slightly condensed reads closer to Google Sans. */
+  font-variation-settings: "wdth" 96;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Focus ring in the primary colour (a white ring vanishes on light surfaces). */
+:root[data-theme="material"] *:focus-visible {
+  outline: 2px solid rgb(var(--md-primary));
+  outline-offset: 2px;
+}
+
+:root[data-theme="material"] ::selection {
+  background: rgb(var(--md-primary) / 0.3);
+}
+
+/* Native controls (selects, checkboxes, range sliders) pick up the primary colour. */
+:root[data-theme="material"] {
+  accent-color: rgb(var(--md-primary));
+}
+:root[data-theme="material"] select option {
+  background: rgb(var(--md-surface-container-high));
+  color: rgb(var(--md-on-surface));
+}

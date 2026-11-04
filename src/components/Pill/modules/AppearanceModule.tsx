@@ -77,7 +77,7 @@ export function AppearanceModule({ settings, animationSpeed = 1.0, onAnimationSp
                       top: m === "notch" ? 0 : "50%",
                       translateY: m === "island" ? "-50%" : 0,
                       background: "linear-gradient(135deg, rgba(20, 20, 22, 0.95), rgba(30, 30, 35, 0.9))",
-                      border: "1px solid rgba(255, 255, 255, 0.1)",
+                      border: "1px solid rgb(var(--md-on-surface) / 0.1)",
                     }}
                     animate={{
                       width: isHovered ? 56 : 44,
@@ -141,8 +141,8 @@ export function AppearanceModule({ settings, animationSpeed = 1.0, onAnimationSp
                 style={{
                   background: preset.value,
                   boxShadow: isActive
-                    ? `0 0 0 2px rgba(0,0,0,0.5), 0 0 0 3.5px rgba(255,255,255,0.4)`
-                    : "0 0 0 1px rgba(255,255,255,0.1)",
+                    ? `0 0 0 2px rgba(0,0,0,0.5), 0 0 0 3.5px rgb(var(--md-on-surface) / 0.4)`
+                    : "0 0 0 1px rgb(var(--md-on-surface) / 0.1)",
                 }}
                 onClick={() => onUpdate({ accentColor: preset.value })}
                 whileHover={{ scale: 1.15 }}

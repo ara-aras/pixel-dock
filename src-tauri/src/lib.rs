@@ -10,6 +10,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::thread;
 use std::time::Duration;
 mod aerie;
+mod aerie_theme;
 mod platform;
 mod sync;
 mod workflows;
@@ -2867,6 +2868,9 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             aerie::aerie_toggle_visibility,
             aerie::aerie_is_hidden,
+            aerie_theme::aerie_wallpaper_info,
+            aerie_theme::aerie_wallpaper_image,
+            aerie_theme::aerie_windows_accent,
             set_click_through,
             resize_window,
             position_window,
