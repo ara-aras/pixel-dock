@@ -2,8 +2,14 @@
 // Material Symbols (Apache-2.0), Rounded, weight 400, as raw SVG text.
 import icon_add from "@material-symbols/svg-400/rounded/add.svg?raw";
 import icon_addFill from "@material-symbols/svg-400/rounded/add-fill.svg?raw";
+import icon_batteryChargingFull from "@material-symbols/svg-400/rounded/battery_charging_full.svg?raw";
+import icon_batteryChargingFullFill from "@material-symbols/svg-400/rounded/battery_charging_full-fill.svg?raw";
+import icon_batteryFull from "@material-symbols/svg-400/rounded/battery_full.svg?raw";
+import icon_batteryFullFill from "@material-symbols/svg-400/rounded/battery_full-fill.svg?raw";
 import icon_calculate from "@material-symbols/svg-400/rounded/calculate.svg?raw";
 import icon_calculateFill from "@material-symbols/svg-400/rounded/calculate-fill.svg?raw";
+import icon_check from "@material-symbols/svg-400/rounded/check.svg?raw";
+import icon_checkFill from "@material-symbols/svg-400/rounded/check-fill.svg?raw";
 import icon_close from "@material-symbols/svg-400/rounded/close.svg?raw";
 import icon_closeFill from "@material-symbols/svg-400/rounded/close-fill.svg?raw";
 import icon_contentCopy from "@material-symbols/svg-400/rounded/content_copy.svg?raw";
@@ -14,6 +20,8 @@ import icon_delete from "@material-symbols/svg-400/rounded/delete.svg?raw";
 import icon_deleteFill from "@material-symbols/svg-400/rounded/delete-fill.svg?raw";
 import icon_description from "@material-symbols/svg-400/rounded/description.svg?raw";
 import icon_descriptionFill from "@material-symbols/svg-400/rounded/description-fill.svg?raw";
+import icon_devices from "@material-symbols/svg-400/rounded/devices.svg?raw";
+import icon_devicesFill from "@material-symbols/svg-400/rounded/devices-fill.svg?raw";
 import icon_folderOpen from "@material-symbols/svg-400/rounded/folder_open.svg?raw";
 import icon_folderOpenFill from "@material-symbols/svg-400/rounded/folder_open-fill.svg?raw";
 import icon_graphicEq from "@material-symbols/svg-400/rounded/graphic_eq.svg?raw";
@@ -28,6 +36,8 @@ import icon_keepOff from "@material-symbols/svg-400/rounded/keep_off.svg?raw";
 import icon_keepOffFill from "@material-symbols/svg-400/rounded/keep_off-fill.svg?raw";
 import icon_link from "@material-symbols/svg-400/rounded/link.svg?raw";
 import icon_linkFill from "@material-symbols/svg-400/rounded/link-fill.svg?raw";
+import icon_linkOff from "@material-symbols/svg-400/rounded/link_off.svg?raw";
+import icon_linkOffFill from "@material-symbols/svg-400/rounded/link_off-fill.svg?raw";
 import icon_mic from "@material-symbols/svg-400/rounded/mic.svg?raw";
 import icon_micFill from "@material-symbols/svg-400/rounded/mic-fill.svg?raw";
 import icon_micOff from "@material-symbols/svg-400/rounded/mic_off.svg?raw";
@@ -38,8 +48,12 @@ import icon_notifications from "@material-symbols/svg-400/rounded/notifications.
 import icon_notificationsFill from "@material-symbols/svg-400/rounded/notifications-fill.svg?raw";
 import icon_palette from "@material-symbols/svg-400/rounded/palette.svg?raw";
 import icon_paletteFill from "@material-symbols/svg-400/rounded/palette-fill.svg?raw";
+import icon_ringVolume from "@material-symbols/svg-400/rounded/ring_volume.svg?raw";
+import icon_ringVolumeFill from "@material-symbols/svg-400/rounded/ring_volume-fill.svg?raw";
 import icon_search from "@material-symbols/svg-400/rounded/search.svg?raw";
 import icon_searchFill from "@material-symbols/svg-400/rounded/search-fill.svg?raw";
+import icon_send from "@material-symbols/svg-400/rounded/send.svg?raw";
+import icon_sendFill from "@material-symbols/svg-400/rounded/send-fill.svg?raw";
 import icon_settings from "@material-symbols/svg-400/rounded/settings.svg?raw";
 import icon_settingsFill from "@material-symbols/svg-400/rounded/settings-fill.svg?raw";
 import icon_stacks from "@material-symbols/svg-400/rounded/stacks.svg?raw";
@@ -50,6 +64,8 @@ import icon_subtitles from "@material-symbols/svg-400/rounded/subtitles.svg?raw"
 import icon_subtitlesFill from "@material-symbols/svg-400/rounded/subtitles-fill.svg?raw";
 import icon_swapHoriz from "@material-symbols/svg-400/rounded/swap_horiz.svg?raw";
 import icon_swapHorizFill from "@material-symbols/svg-400/rounded/swap_horiz-fill.svg?raw";
+import icon_sync from "@material-symbols/svg-400/rounded/sync.svg?raw";
+import icon_syncFill from "@material-symbols/svg-400/rounded/sync-fill.svg?raw";
 import icon_taskAlt from "@material-symbols/svg-400/rounded/task_alt.svg?raw";
 import icon_taskAltFill from "@material-symbols/svg-400/rounded/task_alt-fill.svg?raw";
 import icon_textSnippet from "@material-symbols/svg-400/rounded/text_snippet.svg?raw";
@@ -61,12 +77,16 @@ import icon_videocamFill from "@material-symbols/svg-400/rounded/videocam-fill.s
 
 export const ICONS = {
   add: [icon_add, icon_addFill],
+  battery_charging_full: [icon_batteryChargingFull, icon_batteryChargingFullFill],
+  battery_full: [icon_batteryFull, icon_batteryFullFill],
   calculate: [icon_calculate, icon_calculateFill],
+  check: [icon_check, icon_checkFill],
   close: [icon_close, icon_closeFill],
   content_copy: [icon_contentCopy, icon_contentCopyFill],
   content_paste: [icon_contentPaste, icon_contentPasteFill],
   delete: [icon_delete, icon_deleteFill],
   description: [icon_description, icon_descriptionFill],
+  devices: [icon_devices, icon_devicesFill],
   folder_open: [icon_folderOpen, icon_folderOpenFill],
   graphic_eq: [icon_graphicEq, icon_graphicEqFill],
   image: [icon_image, icon_imageFill],
@@ -74,17 +94,21 @@ export const ICONS = {
   keep: [icon_keep, icon_keepFill],
   keep_off: [icon_keepOff, icon_keepOffFill],
   link: [icon_link, icon_linkFill],
+  link_off: [icon_linkOff, icon_linkOffFill],
   mic: [icon_mic, icon_micFill],
   mic_off: [icon_micOff, icon_micOffFill],
   music_note: [icon_musicNote, icon_musicNoteFill],
   notifications: [icon_notifications, icon_notificationsFill],
   palette: [icon_palette, icon_paletteFill],
+  ring_volume: [icon_ringVolume, icon_ringVolumeFill],
   search: [icon_search, icon_searchFill],
+  send: [icon_send, icon_sendFill],
   settings: [icon_settings, icon_settingsFill],
   stacks: [icon_stacks, icon_stacksFill],
   star_shine: [icon_starShine, icon_starShineFill],
   subtitles: [icon_subtitles, icon_subtitlesFill],
   swap_horiz: [icon_swapHoriz, icon_swapHorizFill],
+  sync: [icon_sync, icon_syncFill],
   task_alt: [icon_taskAlt, icon_taskAltFill],
   text_snippet: [icon_textSnippet, icon_textSnippetFill],
   timer: [icon_timer, icon_timerFill],

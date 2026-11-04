@@ -3,6 +3,7 @@ import { CalcTab } from "./CalcTab";
 import { ClipboardTab } from "./ClipboardTab";
 import { ConvertTab } from "./ConvertTab";
 import { MicTab } from "./MicTab";
+import { PhoneTab } from "./PhoneTab";
 import { PrompterTab } from "./PrompterTab";
 import { ShelfTab } from "./ShelfTab";
 import { SnippetsTab } from "./SnippetsTab";
@@ -20,6 +21,7 @@ export const AERIE_TABS: AerieTab[] = [
   { id: "clipboard", label: "Clipboard", icon: "📋", symbol: "content_paste", ariaLabel: "Clipboard history and paste stack", Component: ClipboardTab },
   { id: "snippets", label: "Snippets", icon: "✂", symbol: "text_snippet", ariaLabel: "Snippets", Component: SnippetsTab },
   { id: "shelf", label: "Shelf", icon: "📥", symbol: "inventory_2", ariaLabel: "File shelf", Component: ShelfTab },
+  { id: "phone", label: "Phone", icon: "📱", symbol: "devices", ariaLabel: "Phone link", Component: PhoneTab },
   { id: "mic", label: "Mic", icon: "🎙", symbol: "mic", ariaLabel: "Microphone mute and camera mirror", Component: MicTab },
   { id: "voice", label: "Voice", icon: "⏺", symbol: "graphic_eq", ariaLabel: "Voice memos", Component: VoiceTab },
   { id: "prompter", label: "Prompter", icon: "📜", symbol: "subtitles", ariaLabel: "Teleprompter", Component: PrompterTab },

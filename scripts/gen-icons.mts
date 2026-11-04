@@ -9,6 +9,8 @@ const ICONS = [
   "folder_open", "graphic_eq", "image", "inventory_2", "keep", "keep_off", "link", "mic",
   "mic_off", "music_note", "notifications", "palette", "search", "settings", "stacks",
   "star_shine", "subtitles", "swap_horiz", "task_alt", "text_snippet", "timer", "videocam",
+  // phone link
+  "battery_charging_full", "battery_full", "check", "devices", "link_off", "ring_volume", "send", "sync",
 ].sort();
 
 const base = new URL("../node_modules/@material-symbols/svg-400/rounded/", import.meta.url);

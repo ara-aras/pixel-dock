@@ -344,6 +344,10 @@ pub fn start_watcher(app: AppHandle) {
                                     let _ = app.emit(CLIPS_CHANGED, ());
                                     // Paste stack in "collect" mode takes every new copy.
                                     crate::aerie_stack::on_new_clip(&app, id);
+                                    // Phone link: send text copies to the paired phone.
+                                    if let Content::Text(text) = &content {
+                                        crate::aerie_phone::on_local_text(&app, text);
+                                    }
                                 }
                                 Ok(None) => {}
                                 Err(e) => eprintln!("[AERIE] could not store clip: {e}"),

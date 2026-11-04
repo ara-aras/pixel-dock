@@ -52,6 +52,8 @@ import { toggleRecording, useVoiceRecorder } from "../../aerie/lib/voiceRecorder
 
 // Size of the idle pill when the "slim line" look is on (logical px).
 const SLIM_IDLE = { width: 72, height: 6, borderRadius: 3 } as const;
+// Material panel: wider (about 2:1) so tools can use a grid or a side card; dock at the bottom.
+const MATERIAL_EXPANDED = { width: 540, height: 340, borderRadius: 28 } as const;
 
 // Tab list lives in ./tabConfig (PILLAR's tabs) and src/aerie/tabs (Aerie's tabs).
 import { EXPANDED_TAB_CONFIG, isTabVisible, type ExpandedTab } from "./tabConfig";
@@ -630,7 +632,9 @@ export function Pill() {
     if (isBooting) return;
     const target = slimIdle
       ? { ...SLIM_IDLE, blur: 0, shadow: 0.1 }
-      : getPillTargetStyle(visualState, {
+      : isMaterial && visualState === "expanded"
+        ? { ...MATERIAL_EXPANDED, blur: 0, shadow: 0.3 }
+        : getPillTargetStyle(visualState, {
           hasMedia: showMediaInIdle,
           hasBattery: showBatteryInIdle,
           hasNotifications: hasNotificationBadge,
@@ -640,7 +644,7 @@ export function Pill() {
     borderRadiusBottom.set(target.borderRadius);
     borderRadiusTop.set(isNotch ? 0 : target.borderRadius);
     shadowOpacity.set(target.shadow);
-  }, [isBooting, visualState, slimIdle, isNotch, showMediaInIdle, showBatteryInIdle, hasNotificationBadge, width, height, borderRadiusTop, borderRadiusBottom, shadowOpacity]);
+  }, [isBooting, visualState, slimIdle, isMaterial, isNotch, showMediaInIdle, showBatteryInIdle, hasNotificationBadge, width, height, borderRadiusTop, borderRadiusBottom, shadowOpacity]);
 
   // Keep window always receiving clicks so the pill is clickable.
   // (Enabling click-through when idle would block mouseenter, so we'd never get hover/click.)
@@ -657,8 +661,9 @@ export function Pill() {
   // Resize and re-center window when expanded or when notification toast is showing (so toast isn't clipped)
   const showNotificationToast = !isExpanded && (notificationPhase === "incoming" || notificationPhase === "absorbing") && !!latestNotification;
   // Compute actual idle pill width based on active indicators (matches getPillTargetStyle logic)
+  const expandedDims = isMaterial ? MATERIAL_EXPANDED : pillDimensions.expanded;
   const idlePillWidth = isExpanded
-    ? pillDimensions.expanded.width
+    ? expandedDims.width
     : getPillTargetStyle("idle", {
         hasMedia: showMediaInIdle,
         hasBattery: showBatteryInIdle,
@@ -667,8 +672,8 @@ export function Pill() {
   useEffect(() => {
     const resizeAndCenter = async () => {
       // Slim idle shrinks the window too, so the transparent area stops covering other apps.
-      const pillWidth = isExpanded ? pillDimensions.expanded.width : slimIdle ? SLIM_IDLE.width : idlePillWidth;
-      const pillHeight = isExpanded ? pillDimensions.expanded.height : slimIdle ? SLIM_IDLE.height : pillDimensions.idle.height;
+      const pillWidth = isExpanded ? expandedDims.width : slimIdle ? SLIM_IDLE.width : idlePillWidth;
+      const pillHeight = isExpanded ? expandedDims.height : slimIdle ? SLIM_IDLE.height : pillDimensions.idle.height;
       // Toast is 300-380px wide, so the window must be wide enough to contain it
       const w = showNotificationToast
         ? Math.max(pillWidth + 60, 420)
@@ -684,7 +689,7 @@ export function Pill() {
     };
 
     resizeAndCenter();
-  }, [isExpanded, showNotificationToast, idlePillWidth, slimIdle]);
+  }, [isExpanded, showNotificationToast, idlePillWidth, slimIdle, expandedDims]);
 
   // Focus trap for expanded state
   useEffect(() => {
@@ -1364,13 +1369,17 @@ export function Pill() {
                 >
                   <span className="text-white text-pill-xs font-bold">P</span>
                 </div>
-                <span className="text-white text-pill-md font-semibold tracking-wide">PILLAR</span>
+                {/* Material: the header names the open tool (the dock below is icon-only). */}
+                <span className="text-white text-pill-md font-semibold tracking-wide">
+                  {isMaterial ? (safeTabs.find((t) => t.id === activeTab)?.label ?? "Aerie") : "PILLAR"}
+                </span>
               </div>
 
               <span
                 className="text-pill-md font-medium text-white tabular-nums"
                 style={{ fontVariantNumeric: "tabular-nums" }}
               >
+                {isMaterial && <span className="mr-2 text-[11px] font-normal text-white/60">{dateStr}</span>}
                 {time}:{seconds}
               </span>
             </div>
@@ -1378,10 +1387,11 @@ export function Pill() {
             {/* Tab Navigation */}
             <div 
               ref={tabStripRef}
-              className={`relative flex mb-1.5 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden ${
+              className={`relative flex overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden ${
                 isMaterial
-                  ? "gap-1 p-1 bg-surface-container-high rounded-full"
-                  : "gap-pill-xs p-pill-xs bg-pill-muted-lightest rounded-pill-md"
+                  ? // Bottom dock: CSS order moves it below the content without restructuring.
+                    "order-last mt-1.5 self-center max-w-full gap-0.5 p-1 bg-surface-container-high rounded-full"
+                  : "mb-1.5 gap-pill-xs p-pill-xs bg-pill-muted-lightest rounded-pill-md"
               }`}
               role="tablist"
               aria-label="PILLAR modules"
@@ -1394,15 +1404,16 @@ export function Pill() {
                   aria-selected={activeTab === tab.id}
                   aria-controls={`panel-${tab.id}`}
                   aria-label={tab.id === "notifications" && notifications.length > 0 ? `Notifications (${notifications.length} unread)` : tab.ariaLabel}
+                  title={tab.label}
                   tabIndex={activeTab === tab.id ? 0 : -1}
-                  className={`relative flex-1 min-w-fit whitespace-nowrap text-[12px] font-medium transition-colors ${
+                  className={`relative min-w-fit whitespace-nowrap text-[12px] font-medium transition-colors ${
                     isMaterial
-                      ? `py-1 px-2 rounded-full ${
+                      ? `p-1.5 rounded-full ${
                           activeTab === tab.id
                             ? "text-on-secondary-container"
                             : "text-on-surface-variant hover:bg-on-surface/[0.08]"
                         }`
-                      : `py-1 px-1.5 rounded-md ${
+                      : `flex-1 py-1 px-1.5 rounded-md ${
                           activeTab === tab.id ? "bg-white/15 text-white" : "text-white/80 hover:text-white"
                         }`
                   }`}
@@ -1430,7 +1441,8 @@ export function Pill() {
                         {isMaterialIconName(tab.symbol) && (
                           <MaterialIcon name={tab.symbol} filled={activeTab === tab.id} size={16} />
                         )}
-                        {tab.label}
+                        {/* Dock is icon-only (the header shows the open tool's name);
+                            each button keeps its name as aria-label and tooltip. */}
                       </span>
                     </>
                   ) : (
@@ -1727,10 +1739,12 @@ export function Pill() {
               </AnimatePresence>
             </div>
 
-            {/* Footer with date */}
-            <div className="flex items-center justify-center pt-pill-md mt-pill-xs border-t border-pill-border flex-shrink-0">
-              <span className="text-pill-muted text-pill-base">{dateStr}</span>
-            </div>
+            {/* Footer with date (glass; Material shows the date in the header and the dock here) */}
+            {!isMaterial && (
+              <div className="flex items-center justify-center pt-pill-md mt-pill-xs border-t border-pill-border flex-shrink-0">
+                <span className="text-pill-muted text-pill-base">{dateStr}</span>
+              </div>
+            )}
           </motion.div>
         )}
       </AnimatePresence>

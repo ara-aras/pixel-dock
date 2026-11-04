@@ -14,6 +14,7 @@ mod aerie_audio;
 mod aerie_clipboard;
 mod aerie_db;
 mod aerie_input;
+mod aerie_phone;
 mod aerie_prompter;
 mod aerie_stack;
 mod aerie_theme;
@@ -2911,6 +2912,17 @@ pub fn run() {
             aerie_prompter::aerie_prompter_open,
             aerie_prompter::aerie_prompter_set_capture_hidden,
             aerie_prompter::aerie_prompter_close,
+            aerie_phone::aerie_phone_state,
+            aerie_phone::aerie_phone_set_enabled,
+            aerie_phone::aerie_phone_set_option,
+            aerie_phone::aerie_phone_pair,
+            aerie_phone::aerie_phone_answer_pair,
+            aerie_phone::aerie_phone_unpair,
+            aerie_phone::aerie_phone_ring,
+            aerie_phone::aerie_phone_ping,
+            aerie_phone::aerie_phone_send_text,
+            aerie_phone::aerie_phone_dismiss,
+            aerie_phone::aerie_phone_send_files,
             set_click_through,
             resize_window,
             position_window,

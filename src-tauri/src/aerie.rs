@@ -107,7 +107,10 @@ pub fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
     let dir = crate::aerie_db::data_dir();
     std::fs::create_dir_all(&dir)?;
     app.manage(crate::aerie_db::open(&dir.join("aerie.db"))?);
+    app.manage(crate::aerie_phone::PhoneService::default());
     crate::aerie_clipboard::start_watcher(app.handle().clone());
+    // Phone link only starts if the user turned it on (it listens on the LAN).
+    crate::aerie_phone::start_if_enabled(app.handle());
     Ok(())
 }
 

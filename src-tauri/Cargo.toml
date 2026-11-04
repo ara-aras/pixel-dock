@@ -23,6 +23,13 @@ rusqlite = { version = "0.37", features = ["bundled"] }
 tauri-plugin-drag = "2"
 # Aerie: task reminders as Windows notifications (PILLAR then shows them in the pill)
 tauri-plugin-notification = "2"
+# Aerie phone link (KDE Connect protocol): async sockets, TLS, self-signed identity.
+# ring backend (already used by reqwest's rustls), so no extra build tools on Windows.
+tokio = { version = "1", features = ["net", "io-util", "sync", "time", "macros", "rt-multi-thread", "fs"] }
+ring = "0.17"
+tokio-rustls = { version = "0.26", default-features = false, features = ["ring", "tls12", "logging"] }
+rustls = { version = "0.23", default-features = false, features = ["ring", "std", "tls12", "logging"] }
+rcgen = "0.14"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 once_cell = "1.20"
