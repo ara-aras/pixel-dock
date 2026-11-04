@@ -7,6 +7,7 @@ import type { AudioSession } from "../../../hooks/usePerAppMixer";
 import type { AppearanceSettings } from "../../../hooks/useAppearance";
 import { ACCENT_PRESETS } from "../../../hooks/useAppearance";
 import type { LayoutSettingsData } from "../../../hooks/useSettings";
+import { ALL_TAB_IDS, isTabVisible } from "../tabConfig";
 import { PerAppMixer } from "./PerAppMixer";
 import { AppearanceModule } from "./AppearanceModule";
 import { microInteractions, PILL_DURATION_FAST, PILL_DURATION_MEDIUM } from "../animations";
@@ -632,22 +633,22 @@ export function QuickSettings({
         <div className="flex flex-col gap-1 rounded-lg bg-white/5 p-2">
           <span className="text-white/85 text-[11px] uppercase tracking-wider">Layout</span>
           <div className="grid grid-cols-2 gap-1">
-            {(["timer", "media", "notifications", "settings", "prism", "productivity"] as const).map((tabId) => (
+            {ALL_TAB_IDS.map((tabId) => (
               <button
                 key={tabId}
                 type="button"
                 className={`text-[10px] px-1.5 py-0.5 rounded transition-colors ${
-                  layoutSettings.visible_tabs[tabId]
+                  isTabVisible(layoutSettings.visible_tabs, tabId)
                     ? "bg-white/20 text-white"
                     : "bg-white/8 text-white/60 hover:text-white hover:bg-white/12"
                 }`}
-                aria-label={`${layoutSettings.visible_tabs[tabId] ? "Hide" : "Show"} ${tabId} tab`}
-                aria-pressed={layoutSettings.visible_tabs[tabId]}
+                aria-label={`${isTabVisible(layoutSettings.visible_tabs, tabId) ? "Hide" : "Show"} ${tabId} tab`}
+                aria-pressed={isTabVisible(layoutSettings.visible_tabs, tabId)}
                 onClick={() =>
                   onLayoutChange({
                     visible_tabs: {
                       ...layoutSettings.visible_tabs,
-                      [tabId]: !layoutSettings.visible_tabs[tabId],
+                      [tabId]: !isTabVisible(layoutSettings.visible_tabs, tabId),
                     },
                   })
                 }
@@ -686,14 +687,7 @@ export function QuickSettings({
             className="mt-1 text-[10px] px-1.5 py-0.5 rounded bg-white/10 text-white/75 hover:text-white hover:bg-white/15"
             onClick={() =>
               onLayoutChange({
-                visible_tabs: {
-                  timer: true,
-                  media: true,
-                  notifications: true,
-                  settings: true,
-                  prism: true,
-                  productivity: true,
-                },
+                visible_tabs: Object.fromEntries(ALL_TAB_IDS.map((id) => [id, true])),
                 idle_indicators: {
                   media: true,
                   battery: true,

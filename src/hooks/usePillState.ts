@@ -59,7 +59,17 @@ interface UsePillStateReturn {
   showNotification: (notification: Omit<NotificationState["data"], "expiresAt">) => void;
 }
 
-export function usePillState(): UsePillStateReturn {
+export interface UsePillStateOptions {
+  /**
+   * When `current` is false the pill ignores hover (no "peek") and a click on the
+   * idle pill expands it directly. A ref, not a value, so the change takes effect
+   * without recreating the handlers.
+   */
+  hoverPeekRef?: { current: boolean };
+}
+
+export function usePillState(options: UsePillStateOptions = {}): UsePillStateReturn {
+  const hoverPeekRef = options.hoverPeekRef;
   // Interaction state
   const [interactionState, setInteractionState] = useState<InteractionState>("boot");
   const hoverTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -208,6 +218,7 @@ export function usePillState(): UsePillStateReturn {
     }
 
     if (currentState === "expanded") return;
+    if (hoverPeekRef && !hoverPeekRef.current) return; // click-only mode
 
     if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);
     hoverTimeoutRef.current = setTimeout(() => {
@@ -239,10 +250,13 @@ export function usePillState(): UsePillStateReturn {
   }, []);
 
   const handleClick = useCallback(() => {
-    if (interactionStateRef.current === "hover") {
+    const state = interactionStateRef.current;
+    // Normally a click expands from the hover "peek". With peek off there is no
+    // hover state, so a click on the idle pill expands it directly.
+    if (state === "hover" || (state === "idle" && hoverPeekRef && !hoverPeekRef.current)) {
       setInteractionState("expanded");
     }
-  }, []);
+  }, [hoverPeekRef]);
 
   const expand = useCallback(() => {
     // Programmatic expansion (tray, shortcuts, workflow). Skip while booting

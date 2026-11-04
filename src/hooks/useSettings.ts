@@ -28,19 +28,21 @@ export interface TimerSettingsData {
 }
 
 export interface LayoutSettingsData {
-  visible_tabs: {
-    timer: boolean;
-    media: boolean;
-    notifications: boolean;
-    settings: boolean;
-    prism: boolean;
-    productivity: boolean;
-  };
+  /** Tab id -> visible. A missing id means visible, so new tabs need no migration. */
+  visible_tabs: Record<string, boolean>;
   idle_indicators: {
     media: boolean;
     battery: boolean;
     notifications: boolean;
   };
+}
+
+/** Aerie's options. Rust stores `aerie` as free-form JSON, so adding one needs no Rust change. */
+export interface AerieSettingsData {
+  /** Open the hover "peek" state when the cursor enters the pill. */
+  hover_peek: boolean;
+  /** "slim" shrinks the idle pill to a thin strip. */
+  idle_style: "pill" | "slim";
 }
 
 export interface AppSettings {
@@ -49,6 +51,7 @@ export interface AppSettings {
   behavior: BehaviorSettingsData;
   timer: TimerSettingsData;
   layout: LayoutSettingsData;
+  aerie: AerieSettingsData;
 }
 
 export const SETTINGS_DEFAULTS: AppSettings = {
@@ -84,6 +87,10 @@ export const SETTINGS_DEFAULTS: AppSettings = {
       battery: true,
       notifications: true,
     },
+  },
+  aerie: {
+    hover_peek: true,
+    idle_style: "pill",
   },
 };
 

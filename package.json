@@ -8,9 +8,11 @@
     "build": "tsc && vite build",
     "preview": "vite preview",
     "icons": "node scripts/create-icons.cjs",
-    "tauri": "set PATH=%USERPROFILE%\\.cargo\\bin;%PATH% && tauri"
+    "tauri": "set PATH=%USERPROFILE%\\.cargo\\bin;%PATH% && tauri",
+    "test:aerie": "npx tsx scripts/aerie-logic.test.mts"
   },
   "dependencies": {
+    "mathjs": "^15.2.0",
     "motion": "^11.15.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"

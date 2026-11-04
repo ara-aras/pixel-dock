@@ -9,6 +9,7 @@ use serde::{Deserialize, Serialize};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::thread;
 use std::time::Duration;
+mod aerie;
 mod platform;
 mod sync;
 mod workflows;
@@ -192,21 +193,10 @@ pub struct TimerSettingsData {
     pub last_custom_minutes: u32,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct LayoutVisibleTabsData {
-    #[serde(default = "default_true")]
-    pub timer: bool,
-    #[serde(default = "default_true")]
-    pub media: bool,
-    #[serde(default = "default_true")]
-    pub notifications: bool,
-    #[serde(default = "default_true")]
-    pub settings: bool,
-    #[serde(default = "default_true")]
-    pub prism: bool,
-    #[serde(default = "default_true")]
-    pub productivity: bool,
-}
+/// Tab id -> visible. A map (not a fixed struct) so new tabs can be added in the
+/// frontend without touching Rust. A tab missing from the map counts as visible,
+/// and unknown ids in an existing settings file are preserved on save.
+pub type LayoutVisibleTabsData = std::collections::HashMap<String, bool>;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LayoutIdleIndicatorsData {
@@ -238,6 +228,10 @@ pub struct AppSettings {
     pub timer: TimerSettingsData,
     #[serde(default)]
     pub layout: LayoutSettingsData,
+    /// Free-form bag for Aerie settings so new options need no Rust change.
+    /// Always a JSON object (never null) so the frontend can merge it over defaults.
+    #[serde(default = "default_aerie")]
+    pub aerie: serde_json::Value,
 }
 
 fn default_mode() -> String { "island".to_string() }
@@ -268,18 +262,6 @@ impl Default for TimerSettingsData {
         Self { last_custom_label: String::new(), last_custom_minutes: default_custom_minutes() }
     }
 }
-impl Default for LayoutVisibleTabsData {
-    fn default() -> Self {
-        Self {
-            timer: true,
-            media: true,
-            notifications: true,
-            settings: true,
-            prism: true,
-            productivity: true,
-        }
-    }
-}
 impl Default for LayoutIdleIndicatorsData {
     fn default() -> Self {
         Self { media: true, battery: true, notifications: true }
@@ -301,8 +283,13 @@ impl Default for AppSettings {
             behavior: BehaviorSettingsData::default(),
             timer: TimerSettingsData::default(),
             layout: LayoutSettingsData::default(),
+            aerie: default_aerie(),
         }
     }
+}
+
+fn default_aerie() -> serde_json::Value {
+    serde_json::json!({})
 }
 
 fn settings_path() -> std::path::PathBuf {
@@ -2765,6 +2752,9 @@ fn parse_workflow_action_id(id: &str) -> Option<workflows::WorkflowActionId> {
     }
 }
 
+// Superseded by aerie::register (which actually registers the shortcuts). Kept so
+// this file stays close to upstream.
+#[allow(dead_code)]
 fn register_global_shortcuts(app: &tauri::AppHandle) {
     let mappings = [
         ("Alt+Shift+P", workflows::WorkflowActionId::OpenProductivityTab),
@@ -2868,8 +2858,15 @@ pub fn run() {
         ));
     }
 
+    // Aerie: hide/show state and real global shortcuts (see aerie.rs).
+    builder = builder
+        .manage(aerie::AerieState::default())
+        .plugin(aerie::global_shortcut_plugin());
+
     builder
         .invoke_handler(tauri::generate_handler![
+            aerie::aerie_toggle_visibility,
+            aerie::aerie_is_hidden,
             set_click_through,
             resize_window,
             position_window,
@@ -2946,9 +2943,11 @@ pub fn run() {
                     .map_err(|e| e.to_string())?;
                 let quit_i = MenuItem::with_id(app, "quit", "Quit PILLAR", true, None::<&str>)
                     .map_err(|e| e.to_string())?;
+                let hide_i = MenuItem::with_id(app, "aerie_toggle_visibility", "Show / hide (Ctrl+Alt+N)", true, None::<&str>)
+                    .map_err(|e| e.to_string())?;
                 let menu = Menu::with_items(
                     app,
-                    &[&expand_i, &open_prod_i, &open_prism_i, &quick_task_i, &quit_i],
+                    &[&expand_i, &hide_i, &open_prod_i, &open_prism_i, &quick_task_i, &quit_i],
                 )
                 .map_err(|e| e.to_string())?;
                 let mut tray_builder = TrayIconBuilder::new()
@@ -2988,6 +2987,9 @@ pub fn run() {
                                     Some(serde_json::json!({ "title": "Tray quick task" })),
                                 );
                             }
+                            "aerie_toggle_visibility" => {
+                                aerie::toggle_visibility(app);
+                            }
                             "quit" => {
                                 app.exit(0);
                             }
@@ -3003,7 +3005,8 @@ pub fn run() {
                     .build(app)
                     .map_err(|e| e.to_string())?;
 
-                register_global_shortcuts(&app.handle());
+                // PILLAR's own register_global_shortcuts only logged; aerie::register wires them up.
+                aerie::register(&app.handle());
 
                 // Window positioning is a desktop API; ignore failures.
                 if let Some(window) = app.get_webview_window("main") {

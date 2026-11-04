@@ -38,16 +38,14 @@ import { createPillThemeTokens, resolveReducedMotion } from "./themeTokens";
 
 const TIMER_NOTIFICATION_TITLE = "PILLAR Timer Complete";
 
-// Tab type for expanded view
-type ExpandedTab = "timer" | "media" | "notifications" | "settings" | "prism" | "productivity";
-const EXPANDED_TAB_CONFIG: Array<{ id: ExpandedTab; label: string; icon: string; ariaLabel: string; hasBadge?: boolean }> = [
-  { id: "timer", label: "Timer", icon: "⏱", ariaLabel: "Timer module" },
-  { id: "media", label: "Media", icon: "🎵", ariaLabel: "Media controls" },
-  { id: "notifications", label: "Notifs", icon: "🔔", ariaLabel: "Notifications", hasBadge: true },
-  { id: "settings", label: "Settings", icon: "⚙", ariaLabel: "Settings" },
-  { id: "productivity", label: "Focus", icon: "✓", ariaLabel: "Productivity module" },
-  { id: "prism", label: "Prism", icon: "AI", ariaLabel: "Prism AI assistant" },
-];
+import { useVisibilityEvents } from "../../aerie/hooks/useVisibilityEvents";
+
+// Size of the idle pill when the "slim line" look is on (logical px).
+const SLIM_IDLE = { width: 72, height: 6, borderRadius: 3 } as const;
+
+// Tab list lives in ./tabConfig (PILLAR's tabs) and src/aerie/tabs (Aerie's tabs).
+import { EXPANDED_TAB_CONFIG, isTabVisible, type ExpandedTab } from "./tabConfig";
+import { AERIE_TABS } from "../../aerie/tabs";
 
 // Helper to get current time string
 const getTimeString = () => {
@@ -88,6 +86,8 @@ function panelHasUnsavedDraft(container: HTMLElement | null): boolean {
 }
 
 export function Pill() {
+  // Aerie: lets the "open on hover" setting reach usePillState without re-creating its handlers.
+  const hoverPeekRef = useRef(true);
   const {
     isBooting,
     isIdle,
@@ -103,7 +103,7 @@ export function Pill() {
     backgroundStates,
     setTimerState,
     setTimerAlert,
-  } = usePillState();
+  } = usePillState({ hoverPeekRef });
   
   // Adaptive polling for reduced CPU usage
   const { triggerActivity } = useAdaptivePolling({
@@ -303,6 +303,7 @@ export function Pill() {
 
   // Centralized settings (motion, behavior, timer persistence)
   const { settings: appSettings, update: updateSettings } = useSettings();
+  hoverPeekRef.current = appSettings.aerie.hover_peek;
 
   // Album art accent color polling
   const [albumAccentColor, setAlbumAccentColor] = useState<string | null>(null);
@@ -394,7 +395,7 @@ export function Pill() {
     (notificationPhase === "showing" || notificationPhase === "idle");
   const themeTokens = createPillThemeTokens({ ...appearance.active, accentColor: effectiveAccentColor });
   const reducedMotion = resolveReducedMotion(appSettings.motion.reduced_motion_override);
-  const visibleTabs = EXPANDED_TAB_CONFIG.filter((tab) => appSettings.layout.visible_tabs[tab.id]);
+  const visibleTabs = EXPANDED_TAB_CONFIG.filter((tab) => isTabVisible(appSettings.layout.visible_tabs, tab.id));
   const safeTabs = visibleTabs.length > 0 ? visibleTabs : EXPANDED_TAB_CONFIG;
 
   const containerRef = useRef<HTMLDivElement>(null);
@@ -587,20 +588,25 @@ export function Pill() {
   // Single place for hover/expanded/unhover: one visual state → one target style
   const visualState: PillVisualState = isExpanded ? "expanded" : isHovering ? "hover" : "idle";
 
+  // Aerie "slim line" idle look: a thin strip while idle. Hover and expanded are unchanged.
+  const slimIdle = appSettings.aerie.idle_style === "slim" && visualState === "idle";
+
   // Update dimensions from current visual state (keeps animations smooth, logic simple)
   useEffect(() => {
     if (isBooting) return;
-    const target = getPillTargetStyle(visualState, {
-      hasMedia: showMediaInIdle,
-      hasBattery: showBatteryInIdle,
-      hasNotifications: hasNotificationBadge,
-    });
+    const target = slimIdle
+      ? { ...SLIM_IDLE, blur: 0, shadow: 0.1 }
+      : getPillTargetStyle(visualState, {
+          hasMedia: showMediaInIdle,
+          hasBattery: showBatteryInIdle,
+          hasNotifications: hasNotificationBadge,
+        });
     width.set(target.width);
     height.set(target.height);
     borderRadiusBottom.set(target.borderRadius);
     borderRadiusTop.set(isNotch ? 0 : target.borderRadius);
     shadowOpacity.set(target.shadow);
-  }, [isBooting, visualState, isNotch, showMediaInIdle, showBatteryInIdle, hasNotificationBadge, width, height, borderRadiusTop, borderRadiusBottom, shadowOpacity]);
+  }, [isBooting, visualState, slimIdle, isNotch, showMediaInIdle, showBatteryInIdle, hasNotificationBadge, width, height, borderRadiusTop, borderRadiusBottom, shadowOpacity]);
 
   // Keep window always receiving clicks so the pill is clickable.
   // (Enabling click-through when idle would block mouseenter, so we'd never get hover/click.)
@@ -626,8 +632,9 @@ export function Pill() {
       }).width;
   useEffect(() => {
     const resizeAndCenter = async () => {
-      const pillWidth = isExpanded ? pillDimensions.expanded.width : idlePillWidth;
-      const pillHeight = isExpanded ? pillDimensions.expanded.height : pillDimensions.idle.height;
+      // Slim idle shrinks the window too, so the transparent area stops covering other apps.
+      const pillWidth = isExpanded ? pillDimensions.expanded.width : slimIdle ? SLIM_IDLE.width : idlePillWidth;
+      const pillHeight = isExpanded ? pillDimensions.expanded.height : slimIdle ? SLIM_IDLE.height : pillDimensions.idle.height;
       // Toast is 300-380px wide, so the window must be wide enough to contain it
       const w = showNotificationToast
         ? Math.max(pillWidth + 60, 420)
@@ -643,7 +650,7 @@ export function Pill() {
     };
 
     resizeAndCenter();
-  }, [isExpanded, showNotificationToast, idlePillWidth]);
+  }, [isExpanded, showNotificationToast, idlePillWidth, slimIdle]);
 
   // Focus trap for expanded state
   useEffect(() => {
@@ -779,11 +786,16 @@ export function Pill() {
     prevNotificationsRef.current = notifications;
   }, [notifications, announceListChange]);
 
+  // Keep the active tab visible when the strip scrolls (many tabs, arrow-key navigation).
+  useEffect(() => {
+    document.getElementById(`tab-${activeTab}`)?.scrollIntoView({ inline: "nearest", block: "nearest" });
+  }, [activeTab, isExpanded]);
+
   // Announce tab changes
   useEffect(() => {
     const prev = prevActiveTabRef.current;
     if (prev !== activeTab) {
-      const tabNames: Record<ExpandedTab, string> = {
+      const tabNames: Record<string, string> = {
         timer: "Timer",
         media: "Media",
         notifications: "Notifications",
@@ -791,7 +803,9 @@ export function Pill() {
         productivity: "Productivity",
         prism: "Prism AI",
       };
-      announce(`Switched to ${tabNames[activeTab]} tab`);
+      const name =
+        tabNames[activeTab] ?? EXPANDED_TAB_CONFIG.find((t) => t.id === activeTab)?.ariaLabel ?? activeTab;
+      announce(`Switched to ${name} tab`);
     }
     prevActiveTabRef.current = activeTab;
   }, [activeTab, announce]);
@@ -953,6 +967,11 @@ export function Pill() {
   }, [addTask, expandPill, handleClickOutside, isExpanded]);
 
   useWorkflowEvents(executeWorkflowAction);
+
+  // Aerie: collapse the panel when the overlay hides, so it does not come back expanded.
+  useVisibilityEvents((visible) => {
+    if (!visible) handleClickOutside();
+  });
 
   const triggerWorkflowAction = useCallback(async (id: WorkflowActionEnvelope["id"], args?: Record<string, unknown>) => {
     const envelope: WorkflowActionEnvelope = {
@@ -1122,7 +1141,7 @@ export function Pill() {
       )}
 
       {/* Idle/Hover Content */}
-      {!isBooting && !isExpanded && (
+      {!isBooting && !isExpanded && !slimIdle && (
         <div
           ref={pillToggleRef}
           className="absolute inset-0 flex items-center pointer-events-none select-none px-4"
@@ -1297,7 +1316,7 @@ export function Pill() {
 
             {/* Tab Navigation */}
             <div 
-              className="flex gap-pill-xs mb-1.5 p-pill-xs bg-pill-muted-lightest rounded-pill-md"
+              className="flex gap-pill-xs mb-1.5 p-pill-xs bg-pill-muted-lightest rounded-pill-md overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
               role="tablist"
               aria-label="PILLAR modules"
             >
@@ -1310,7 +1329,7 @@ export function Pill() {
                   aria-controls={`panel-${tab.id}`}
                   aria-label={tab.id === "notifications" && notifications.length > 0 ? `Notifications (${notifications.length} unread)` : tab.ariaLabel}
                   tabIndex={activeTab === tab.id ? 0 : -1}
-                  className={`relative flex-1 py-1 px-0.5 rounded-md text-[12px] font-medium transition-colors ${
+                  className={`relative flex-1 min-w-fit whitespace-nowrap py-1 px-0.5 rounded-md text-[12px] font-medium transition-colors ${
                     activeTab === tab.id 
                       ? "bg-white/15 text-white" 
                       : "text-white/80 hover:text-white"
@@ -1581,6 +1600,29 @@ export function Pill() {
                       }}
                     />
                   </motion.div>
+                )}
+
+                {/* Aerie tabs: rendered from the registry, one wrapper for all of them. */}
+                {AERIE_TABS.map(({ id, Component }) =>
+                  activeTab === id ? (
+                    <motion.div
+                      key={id}
+                      id={`panel-${id}`}
+                      role="tabpanel"
+                      aria-labelledby={`tab-${id}`}
+                      className="w-full h-full min-h-0 flex flex-col overflow-y-auto"
+                      initial={{ opacity: 0, x: -20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      exit={{ opacity: 0, x: 20 }}
+                      transition={{ duration: panelTransitionDuration }}
+                    >
+                      <Component
+                        accentColor={effectiveAccentColor}
+                        settings={appSettings}
+                        updateSettings={updateSettings}
+                      />
+                    </motion.div>
+                  ) : null,
                 )}
               </AnimatePresence>
             </div>
