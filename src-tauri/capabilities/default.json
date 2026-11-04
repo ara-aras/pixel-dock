@@ -2,7 +2,7 @@
   "$schema": "https://schema.tauri.app/config/2",
   "identifier": "default",
   "description": "Default capabilities for PILLAR",
-  "windows": ["main"],
+  "windows": ["main", "prompter"],
   "permissions": [
     "core:default",
     "core:tray:default",
@@ -12,6 +12,8 @@
     "core:window:allow-set-always-on-top",
     "autostart:allow-enable",
     "autostart:allow-disable",
-    "autostart:allow-is-enabled"
+    "autostart:allow-is-enabled",
+    "notification:default",
+    "drag:default"
   ]
 }

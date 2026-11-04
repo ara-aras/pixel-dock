@@ -21,16 +21,34 @@ pub struct AerieState {
 enum Hotkey {
     ToggleVisibility,
     Action(WorkflowActionId),
+    /// Mic mute: needs press and release (tap = toggle, hold = push-to-talk).
+    MicMute,
+    StackToggleCollect,
+    StackPasteNext,
+    /// Forwarded to the frontend as an event (voice recorder, teleprompter).
+    Frontend(&'static str, &'static str),
 }
 
-/// The shortcut table. Ctrl+Alt+N is ours; the Alt+Shift ones are the mappings
-/// PILLAR reserved but never wired up (its function only logged them).
+/// Frontend event carrying a command string, e.g. ("aerie://voice", "toggle").
+pub const VOICE_EVENT: &str = "aerie://voice";
+pub const PROMPTER_EVENT: &str = "aerie://prompter";
+
+/// The shortcut table. Ctrl+Alt+<key> are Aerie's; the Alt+Shift ones are the
+/// mappings PILLAR reserved but never wired up (its function only logged them).
+/// Teleprompter speed uses Ctrl+Alt+Shift+Up/Down because Ctrl+Alt+arrows rotate
+/// the screen on many Intel graphics drivers.
 fn hotkeys() -> Vec<(Shortcut, Hotkey)> {
+    let ctrl_alt = Some(Modifiers::CONTROL | Modifiers::ALT);
+    let ctrl_alt_shift = Some(Modifiers::CONTROL | Modifiers::ALT | Modifiers::SHIFT);
     vec![
-        (
-            Shortcut::new(Some(Modifiers::CONTROL | Modifiers::ALT), Code::KeyN),
-            Hotkey::ToggleVisibility,
-        ),
+        (Shortcut::new(ctrl_alt, Code::KeyN), Hotkey::ToggleVisibility),
+        (Shortcut::new(ctrl_alt, Code::KeyM), Hotkey::MicMute),
+        (Shortcut::new(ctrl_alt, Code::KeyC), Hotkey::StackToggleCollect),
+        (Shortcut::new(ctrl_alt, Code::KeyV), Hotkey::StackPasteNext),
+        (Shortcut::new(ctrl_alt, Code::KeyR), Hotkey::Frontend(VOICE_EVENT, "toggle")),
+        (Shortcut::new(ctrl_alt, Code::KeyP), Hotkey::Frontend(PROMPTER_EVENT, "toggle")),
+        (Shortcut::new(ctrl_alt_shift, Code::ArrowUp), Hotkey::Frontend(PROMPTER_EVENT, "faster")),
+        (Shortcut::new(ctrl_alt_shift, Code::ArrowDown), Hotkey::Frontend(PROMPTER_EVENT, "slower")),
         (
             Shortcut::new(Some(Modifiers::ALT | Modifiers::SHIFT), Code::Space),
             Hotkey::Action(WorkflowActionId::ToggleExpand),
@@ -50,16 +68,22 @@ fn hotkeys() -> Vec<(Shortcut, Hotkey)> {
 pub fn global_shortcut_plugin() -> tauri::plugin::TauriPlugin<tauri::Wry> {
     tauri_plugin_global_shortcut::Builder::new()
         .with_handler(|app, shortcut, event| {
-            if event.state() != ShortcutState::Pressed {
-                return;
-            }
+            let pressed = event.state() == ShortcutState::Pressed;
             for (candidate, hotkey) in hotkeys() {
                 if &candidate != shortcut {
                     continue;
                 }
-                match hotkey {
-                    Hotkey::ToggleVisibility => toggle_visibility(app),
-                    Hotkey::Action(id) => workflows::emit_action(app, id, "shortcut", None),
+                match (hotkey, pressed) {
+                    (Hotkey::MicMute, true) => crate::aerie_audio::on_hotkey_pressed(app),
+                    (Hotkey::MicMute, false) => crate::aerie_audio::on_hotkey_released(app),
+                    (_, false) => {} // everything else acts on press only
+                    (Hotkey::ToggleVisibility, true) => toggle_visibility(app),
+                    (Hotkey::Action(id), true) => workflows::emit_action(app, id, "shortcut", None),
+                    (Hotkey::StackToggleCollect, true) => crate::aerie_stack::toggle_collecting(app),
+                    (Hotkey::StackPasteNext, true) => crate::aerie_stack::paste_next(app),
+                    (Hotkey::Frontend(event_name, command), true) => {
+                        let _ = app.emit(event_name, command);
+                    }
                 }
                 break;
             }
@@ -75,6 +99,16 @@ pub fn register(app: &AppHandle) {
             eprintln!("[AERIE] could not register shortcut {shortcut:?}: {err}");
         }
     }
+}
+
+/// One startup hook for everything Aerie adds, called from PILLAR's `setup`:
+/// opens the database and starts background watchers.
+pub fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
+    let dir = crate::aerie_db::data_dir();
+    std::fs::create_dir_all(&dir)?;
+    app.manage(crate::aerie_db::open(&dir.join("aerie.db"))?);
+    crate::aerie_clipboard::start_watcher(app.handle().clone());
+    Ok(())
 }
 
 /// Hide the overlay window if visible, show it if hidden.

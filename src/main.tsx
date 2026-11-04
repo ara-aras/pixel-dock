@@ -10,6 +10,7 @@ import "./index.css";
 import "./aerie/theme/material.css";
 import { CrashBoundary } from "./components/CrashBoundary";
 import { useCrashRecovery } from "./hooks/useCrashRecovery";
+import { PrompterWindow } from "./aerie/prompter/PrompterWindow";
 
 function AppWithRecovery() {
   const { reportCrash } = useCrashRecovery({
@@ -58,8 +59,11 @@ function AppWithRecovery() {
   );
 }
 
+// Aerie: the teleprompter opens this same bundle in its own window at #prompter/<scriptId>.
+const prompterMatch = /^#prompter\/([A-Za-z0-9-]+)$/.exec(window.location.hash);
+
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
   <React.StrictMode>
-    <AppWithRecovery />
+    {prompterMatch ? <PrompterWindow scriptId={prompterMatch[1]} /> : <AppWithRecovery />}
   </React.StrictMode>
 );

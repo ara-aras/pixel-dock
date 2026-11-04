@@ -2,6 +2,7 @@ import { motion } from "motion/react";
 import { useMemo, useState } from "react";
 import type { NoteItem, ProductivityState } from "../../../types/productivity";
 import { microInteractions } from "../animations";
+import { formatDue, looksDateOnly, parseTask } from "../../../aerie/lib/taskParse";
 
 type ProductivityView = "tasks" | "notes" | "agenda";
 
@@ -129,7 +130,14 @@ export function ProductivityModule({
             <input
               value={taskInput}
               onChange={(e) => setTaskInput(e.target.value)}
-              placeholder="Add task..."
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && taskInput.trim()) {
+                  onAddTask(taskInput);
+                  setTaskInput("");
+                }
+              }}
+              placeholder='Add task, e.g. "call mom tomorrow 5pm"'
+              aria-describedby="aerie-task-due-preview"
               className="flex-1 bg-white/10 text-white text-[12px] rounded px-2 py-1 outline-none"
             />
             <button
@@ -144,6 +152,13 @@ export function ProductivityModule({
               Add
             </button>
           </div>
+          {/* Aerie: show the date we understood before the task is added. */}
+          <span id="aerie-task-due-preview" className="text-[10px] text-white/60 min-h-[12px]" aria-live="polite">
+            {(() => {
+              const parsed = taskInput.trim() ? parseTask(taskInput) : null;
+              return parsed?.dueAt ? `Due ${formatDue(parsed.dueAt, parsed.hasTime)} · reminder then` : "";
+            })()}
+          </span>
           <div className="flex items-center justify-between text-[10px] text-white/60">
             <span>{state.tasks.length} tasks</span>
             <button type="button" onClick={onClearCompleted} className="hover:text-white/90">
@@ -159,6 +174,15 @@ export function ProductivityModule({
                 <span className={`text-[12px] flex-1 ${task.completed ? "line-through text-white/45" : "text-white/85"}`}>
                   {task.title}
                 </span>
+                {task.dueAt !== undefined && (
+                  <span
+                    className={`text-[10px] whitespace-nowrap ${
+                      !task.completed && task.dueAt < Date.now() ? "text-red-400" : "text-white/55"
+                    }`}
+                  >
+                    {formatDue(task.dueAt, !looksDateOnly(task.dueAt))}
+                  </span>
+                )}
                 <button
                   type="button"
                   className={`text-[10px] hover:text-white ${pendingRemoveTaskId === task.id ? "text-red-300" : "text-white/60"}`}

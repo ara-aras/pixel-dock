@@ -168,4 +168,28 @@ The repo root is now a fork of [PILLAR](https://github.com/warpirate/pillar-dyna
 
 **Verified on the running app:** all four shortcuts register without errors; Ctrl+Alt+N hid the window and showed it again at the same position. **Not verified:** the Aerie settings tab on screen, slim idle, and hover-off, which need a person to click through.
 
-**Revised order:** (1) ~~refactor tab registration so new tabs are one line~~, (2) port calculator, converter, snippets, (3) SQLite store, (4) clipboard family, (5) real global shortcuts, mic mute, voice memos, teleprompter, (6) cross-device phone link.
+**Revised order:** (1) ~~refactor tab registration so new tabs are one line~~, (2) ~~port calculator, converter, snippets~~, (3) ~~SQLite store~~, (4) ~~clipboard family~~, (5) ~~real global shortcuts, mic mute, voice memos, teleprompter~~, (6) cross-device phone link, (7) theming and polish pass (dock, Wallpaper Engine colours, tab-strip crowding).
+
+## Done: Phases 2 to 4 tool set (2026-11-04)
+
+All tools from the reference product now exist, on top of PILLAR's own (timer, media, notifications, volume, brightness, battery, tasks/notes/agenda, Prism).
+
+| Tool | Where | Notes |
+|---|---|---|
+| SQLite store | `src-tauri/src/aerie_db.rs` | `%APPDATA%\PILLAR\aerie.db`, WAL, `secure_delete`, versioned migrations (v2) |
+| Clipboard history | `aerie_clipboard.rs`, `ClipboardTab.tsx` | Text, links, files, images. Search, filters, pin, retention (days/size), pause, never-record list. Skips password managers and Windows private-copy flags. Reads 200 ms after a change (60 ms made other apps' copies fail). |
+| Paste stack | `aerie_stack.rs`, `aerie_input.rs`, `StackPanel.tsx` | Ctrl+Alt+C collect, Ctrl+Alt+V paste next (waits for modifiers to be released). Admin apps need Aerie as admin. |
+| Shelf | `ShelfTab.tsx` | Native drop in, drag out (`tauri-plugin-drag`), copy as files. Paths only; originals untouched. |
+| Snippets | `SnippetsTab.tsx`, `lib/snippets.ts` | `{date}`, `{time}`, `{clipboard}`, `{?blank}` |
+| Natural-language tasks | `lib/taskParse.ts` + PILLAR's Focus tab | "call mom tomorrow 5pm"; date-only tasks default to 09:00 |
+| Reminders | `useTaskReminders.ts` | Windows notification (also mirrored into the pill by PILLAR) |
+| Mic mute | `aerie_audio.rs`, `MicTab.tsx` | System-level, all default capture devices. Ctrl+Alt+M: tap toggles, hold while muted = push-to-talk. Badge left of the pill. |
+| Camera mirror | `MicTab.tsx` | Preview only, stops when leaving the tab |
+| Voice memos | `aerie_voice.rs`, `lib/voiceRecorder.ts`, `VoiceTab.tsx` | WebM/Opus, streamed to disk in 4 s chunks, Ctrl+Alt+R anywhere, refuses while muted, 2 h cap, recording badge |
+| Teleprompter | `aerie_prompter.rs`, `PrompterTab.tsx`, `prompter/PrompterWindow.tsx` | Own window under the camera, hidden from screen capture (WDA_EXCLUDEFROMCAPTURE), wpm speed, fit-to-time, mirror, 3 s countdown, remembers position. Ctrl+Alt+P, Ctrl+Alt+Shift+Up/Down. |
+
+**Tests:** `npm run test:aerie` (61 checks), `cargo test --lib aerie` (20 tests).
+
+**Verified on the running app:** database created; clipboard capture of text (5/5) with source app recorded; copies from other apps no longer fail. **Not verified by hand yet:** image/file capture UI, password-manager skip, paste stack paste, drag out of the Shelf, mic mute hotkey, camera and mic permission prompts in the webview, voice recording, teleprompter window and capture hiding.
+
+**Known gaps:** no "another app is using your camera/mic" dot yet; Wallpaper Engine's live wallpaper is not read (the static Windows wallpaper is); 15 tabs make the strip long (hide unused ones in Settings > Layout).

@@ -44,6 +44,11 @@ import { createMaterialPillTokens } from "../../aerie/theme/pillTokens";
 import { MATERIAL_SPRINGS } from "../../aerie/theme/motion";
 import { MaterialIcon, isMaterialIconName } from "../../aerie/theme/MaterialIcon";
 import { AerieThemeContext } from "../../aerie/theme/ThemeContext";
+import { parseTask } from "../../aerie/lib/taskParse";
+import { useTaskReminders } from "../../aerie/hooks/useTaskReminders";
+import { useMicState } from "../../aerie/hooks/useMicState";
+import { useAerieEvent } from "../../aerie/hooks/useAerieEvent";
+import { toggleRecording, useVoiceRecorder } from "../../aerie/lib/voiceRecorder";
 
 // Size of the idle pill when the "slim line" look is on (logical px).
 const SLIM_IDLE = { width: 72, height: 6, borderRadius: 3 } as const;
@@ -301,6 +306,14 @@ export function Pill() {
     exportBackup,
     importBackup,
   } = useProductivity();
+  // Aerie: Windows notification when a task falls due.
+  useTaskReminders(productivity.tasks);
+  // Aerie: mic mute + voice memo state for the pill badges; Ctrl+Alt+R records from anywhere.
+  const [mic] = useMicState(5000);
+  const voice = useVoiceRecorder();
+  useAerieEvent<string>("aerie://voice", (cmd) => {
+    if (cmd === "toggle") toggleRecording();
+  });
 
   // Appearance settings (mode, opacity, accent color)
   const appearance = useAppearance();
@@ -1176,6 +1189,18 @@ export function Pill() {
         </div>
       )}
 
+      {/* Aerie status badges, just left of the pill (inside the window's side margin). */}
+      {!isBooting && !isExpanded && (voice.recording || (mic.available && mic.muted)) && (
+        <div className="pointer-events-none absolute right-full top-1/2 mr-1.5 flex -translate-y-1/2 items-center gap-1" aria-hidden="true">
+          {voice.recording && <span className="h-2.5 w-2.5 animate-pulse rounded-full bg-red-500" />}
+          {mic.available && mic.muted && (
+            <span className={`flex h-5 w-5 items-center justify-center rounded-full ${isMaterial ? "bg-error-container text-on-error-container" : "bg-red-500/80 text-fixed-white"}`}>
+              <MaterialIcon name="mic_off" size={13} filled />
+            </span>
+          )}
+        </div>
+      )}
+
       {/* Idle/Hover Content */}
       {!isBooting && !isExpanded && !slimIdle && (
         <div
@@ -1649,7 +1674,11 @@ export function Pill() {
                   >
                     <ProductivityModule
                       state={productivity}
-                      onAddTask={addTask}
+                      onAddTask={(input) => {
+                        // Aerie: "call mom tomorrow 5pm" -> title "call mom", due tomorrow 17:00.
+                        const parsed = parseTask(input);
+                        addTask(parsed.title, parsed.dueAt ?? undefined);
+                      }}
                       onToggleTask={toggleTask}
                       onRemoveTask={removeTask}
                       onClearCompleted={clearCompletedTasks}

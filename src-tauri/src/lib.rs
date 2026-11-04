@@ -10,7 +10,14 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::thread;
 use std::time::Duration;
 mod aerie;
+mod aerie_audio;
+mod aerie_clipboard;
+mod aerie_db;
+mod aerie_input;
+mod aerie_prompter;
+mod aerie_stack;
 mod aerie_theme;
+mod aerie_voice;
 mod platform;
 mod sync;
 mod workflows;
@@ -2862,7 +2869,9 @@ pub fn run() {
     // Aerie: hide/show state and real global shortcuts (see aerie.rs).
     builder = builder
         .manage(aerie::AerieState::default())
-        .plugin(aerie::global_shortcut_plugin());
+        .plugin(aerie::global_shortcut_plugin())
+        .plugin(tauri_plugin_drag::init())
+        .plugin(tauri_plugin_notification::init());
 
     builder
         .invoke_handler(tauri::generate_handler![
@@ -2871,6 +2880,37 @@ pub fn run() {
             aerie_theme::aerie_wallpaper_info,
             aerie_theme::aerie_wallpaper_image,
             aerie_theme::aerie_windows_accent,
+            aerie_db::aerie_kv_get,
+            aerie_db::aerie_kv_set,
+            aerie_db::aerie_docs_list,
+            aerie_db::aerie_doc_put,
+            aerie_db::aerie_doc_delete,
+            aerie_clipboard::aerie_clips_list,
+            aerie_clipboard::aerie_clip_text,
+            aerie_clipboard::aerie_clip_copy,
+            aerie_clipboard::aerie_clip_set_pinned,
+            aerie_clipboard::aerie_clip_delete,
+            aerie_clipboard::aerie_clips_clear,
+            aerie_clipboard::aerie_clip_image,
+            aerie_clipboard::aerie_clipboard_write_text,
+            aerie_clipboard::aerie_clipboard_read_text,
+            aerie_clipboard::aerie_clipboard_write_files,
+            aerie_clipboard::aerie_paths_exist,
+            aerie_stack::aerie_stack_get,
+            aerie_stack::aerie_stack_push,
+            aerie_stack::aerie_stack_remove,
+            aerie_stack::aerie_stack_clear,
+            aerie_stack::aerie_stack_set_collecting,
+            aerie_stack::aerie_stack_paste_next,
+            aerie_audio::aerie_mic_state,
+            aerie_audio::aerie_mic_set_muted,
+            aerie_voice::aerie_voice_append,
+            aerie_voice::aerie_voice_load,
+            aerie_voice::aerie_voice_delete,
+            aerie_voice::aerie_voice_reveal,
+            aerie_prompter::aerie_prompter_open,
+            aerie_prompter::aerie_prompter_set_capture_hidden,
+            aerie_prompter::aerie_prompter_close,
             set_click_through,
             resize_window,
             position_window,
@@ -2933,6 +2973,9 @@ pub fn run() {
             prism_chat
         ])
         .setup(|app| {
+            // Aerie: database, clipboard watcher (see aerie.rs).
+            aerie::setup(app)?;
+
             // Desktop-only UX (tray icon / window positioning). Mobile builds should skip this.
             #[cfg(desktop)]
             {
