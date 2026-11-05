@@ -19,6 +19,7 @@ mod aerie_prompter;
 mod aerie_stack;
 mod aerie_theme;
 mod aerie_voice;
+mod aerie_webview;
 mod platform;
 mod sync;
 mod workflows;
@@ -2878,6 +2879,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             aerie::aerie_toggle_visibility,
             aerie::aerie_is_hidden,
+            aerie::aerie_hotkeys,
             aerie_theme::aerie_wallpaper_info,
             aerie_theme::aerie_wallpaper_image,
             aerie_theme::aerie_windows_accent,

@@ -43,6 +43,10 @@ sysinfo = "0.33"
 brightness = "0.8"
 # Aerie: clipboard history and paste (read/write text, files, bitmaps; change monitor)
 clipboard-win = { version = "5", features = ["monitor"] }
+# Aerie: answer WebView2 mic/camera prompts for our own page. Must match the
+# versions wry/tauri use (see Cargo.lock), or the controller types differ.
+webview2-com = "0.39"
+windows-core = "0.62"
 
 [target.'cfg(target_os = "windows")'.dependencies.windows]
 version = "0.58"

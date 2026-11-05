@@ -5,6 +5,30 @@ anything odd next to it; that list becomes the next round of changes.
 
 Automated tests (already passing): `npm run test:aerie` and `cd src-tauri && cargo test --lib aerie`.
 
+## Already verified on this PC (2026-11-05, dev build, scripted)
+These ran against the real running app (real hotkeys, real clipboard, WebView driven over a local
+debug port), so you can skim them and focus on the feel:
+- Clipboard: text, link, image and files captured with the source app; a copy from a process named
+  `KeePassXC.exe` is not recorded (also when Windows announces it twice); one copy = one entry.
+- Paste stack: Ctrl+Alt+C, three copies, Ctrl+Alt+V x3 pasted in order into a text box, stack emptied.
+- Mic: the hotkey tap mutes, hold-while-muted talks, release mutes, tap unmutes (state restored).
+- Voice memo: hotkey records with no permission popup; a valid WebM is saved (then deleted).
+- Teleprompter: opens top-centre, hidden from capture (`WDA_EXCLUDEFROMCAPTURE`), un-hide works,
+  opening a second script reuses the window, close works.
+- Reminders: "in 1 minute" shows the due time before adding and fires on time.
+- Phone link against a simulated KDE Connect phone on loopback: TLS 1.3, pairing request + accept,
+  certificate pinning (a changed certificate is rejected), battery, notifications, ping, ring,
+  dismiss, clipboard both ways without echo, file phone->PC (unsafe name cleaned) and PC->phone,
+  reconnect replaces a stale link, nothing but pairing is sent to an unpaired phone. Discovery also
+  found two real KDE Connect phones on the Wi-Fi (not paired).
+- Every tab renders with no script errors (fixed: a React ref warning on Notifs, and a false
+  "Failed to resize/position window" error PILLAR logged on every resize); Material/Glass,
+  Light/Dark, Tonal/Expressive switch live.
+- Calc: "15% of 240", "5 km to miles", "100 f to c", "30°C in F".
+
+Still needs you (hardware or judgement): the real Pixel pairing and notifications, shelf drag in/out,
+camera mirror picture, a real screen share with the prompter, how animations feel.
+
 ## Shell and look
 - [ ] Pill shows at the top centre; hover peeks, click opens the panel.
 - [ ] Material panel: tool name + date + time in the header, icon dock at the bottom, hover a dock icon for its name.
@@ -35,9 +59,9 @@ Automated tests (already passing): `npm run test:aerie` and `cd src-tauri && car
 - [ ] "pay rent on friday" shows Friday (09:00 reminder).
 
 ## Mic, camera, voice
-- [ ] Ctrl+Alt+M: tap mutes (badge left of the pill), tap again unmutes. While muted, hold to talk, release mutes.
+- [ ] Mic shortcut (Ctrl+Alt+K on this PC, see the Mic tab): tap mutes (badge left of the pill), tap again unmutes. While muted, hold to talk, release mutes.
 - [ ] Mic tab: big button mirrors the state; Camera mirror shows a mirrored preview; camera light goes off when leaving the tab.
-- [ ] Ctrl+Alt+R records from any app (red dot by the pill); again stops; the memo appears in Voice with play, rename, show in folder, delete.
+- [ ] Voice shortcut (Ctrl+Alt+Shift+R on this PC) records from any app (red dot by the pill); again stops; the memo appears in Voice with play, rename, show in folder, delete.
 - [ ] Recording while muted is refused with a message.
 
 ## Teleprompter
@@ -55,9 +79,11 @@ Automated tests (already passing): `npm run test:aerie` and `cd src-tauri && car
 - [ ] Share a photo from the phone to the PC: it lands in Downloads. Send Shelf files to the phone with the send icon.
 
 ## Known limits
-- **On this PC, Ctrl+Alt+M and Ctrl+Alt+R are already taken by another app**, so mic mute and voice
-  recording hotkeys did not register (the Mic and Voice tab buttons still work). Pick other combos and
-  they will be changed; a shortcut editor is on the list.
+- **Shortcut fallbacks.** When another app owns a combination, Aerie tries the next one. On this PC
+  Ctrl+Alt+M and Ctrl+Alt+Shift+M are taken, so **mic is Ctrl+Alt+K**; Ctrl+Alt+R is taken, so
+  **voice is Ctrl+Alt+Shift+R**. The Mic/Voice/Stack hints and Aerie > Shortcuts show what is
+  actually in use. A shortcut editor is still on the list.
+- Mic and camera are granted to Aerie's own page without a popup; other pages never get them.
 - Pasting into apps running as administrator needs Aerie run as administrator.
 - Wallpaper Engine's animated wallpaper is not read; the static Windows wallpaper is.
 - No "another app is using your camera/mic" dot yet.

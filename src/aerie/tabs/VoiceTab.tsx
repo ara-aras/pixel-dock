@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { fireAndForget } from "../../lib/fireAndForget";
 import { tauriInvoke } from "../../lib/tauri";
 import { useAerieEvent } from "../hooks/useAerieEvent";
+import { useHotkeys } from "../hooks/useHotkeys";
 import { type Doc, docDelete, docPut, docsList } from "../lib/store";
 import { relativeTime } from "../lib/time";
 import { clearRecorderError, toggleRecording, useVoiceRecorder, VOICE_COLLECTION, type VoiceMemo } from "../lib/voiceRecorder";
@@ -90,6 +91,7 @@ function MemoRow({ memo, onChanged }: { memo: Doc<VoiceMemo>; onChanged: () => v
 export function VoiceTab(_props: AerieTabProps) {
   const { isMaterial } = useAerieThemeContext();
   const rec = useVoiceRecorder();
+  const hotkey = useHotkeys().label("voice");
   const [memos, setMemos] = useState<Doc<VoiceMemo>[]>([]);
   const [now, setNow] = useState(Date.now());
 
@@ -122,7 +124,9 @@ export function VoiceTab(_props: AerieTabProps) {
         <MaterialIcon name={rec.recording ? "graphic_eq" : "mic"} size={20} filled />
         {rec.recording ? `Stop · ${clock(now - rec.startedAt)}` : "Record a memo"}
       </button>
-      <p className="px-1 text-[10px] text-white/55">Ctrl+Alt+R starts and stops recording from any app. Up to 2 hours.</p>
+      <p className="px-1 text-[10px] text-white/55">
+        {hotkey ? `${hotkey} starts and stops recording from any app.` : "No shortcut free; use the button."} Up to 2 hours.
+      </p>
       {rec.error && (
         <button type="button" onClick={clearRecorderError} className="px-1 text-left text-[11px] text-red-400">
           {rec.error}

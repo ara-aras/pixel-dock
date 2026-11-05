@@ -73,6 +73,10 @@ struct Device {
     name: String,
     ip: Option<IpAddr>,
     tx: Option<UnboundedSender<String>>,
+    /// Identifies the live link, so a replaced link's cleanup leaves the new one alone.
+    link_id: u64,
+    /// Closes the live link when a newer connection from the same phone replaces it.
+    close: Option<tokio::sync::oneshot::Sender<()>>,
     cert: Option<Vec<u8>>,
     battery: Option<(i64, bool)>,
     notifications: Vec<PhoneNotification>,
@@ -180,6 +184,11 @@ fn device_name(app: &AppHandle, id: &str) -> String {
 
 /// Queue a packet for a connected device.
 fn send(app: &AppHandle, id: &str, packet: Packet) -> Result<(), String> {
+    // Only pairing traffic may go to a phone we have not paired with: clipboard
+    // text, files and pings must never reach an unverified device.
+    if packet.kind != PAIR && !is_paired(app, id) {
+        return Err("pair with this phone first".into());
+    }
     let tx = svc(app)
         .0
         .lock()
@@ -318,6 +327,9 @@ fn disable(app: &AppHandle) {
         }
         for d in i.devices.values_mut() {
             d.tx = None;
+            if let Some(c) = d.close.take() {
+                let _ = c.send(());
+            }
             d.incoming_pair = false;
             d.pending_pair = false;
         }
@@ -428,17 +440,25 @@ where
         }
     }
 
+    static NEXT_LINK: AtomicU64 = AtomicU64::new(1);
+    let link_id = NEXT_LINK.fetch_add(1, Ordering::SeqCst);
     let (tx, mut rx) = unbounded_channel::<String>();
+    let (close_tx, mut close_rx) = tokio::sync::oneshot::channel::<()>();
     let state = svc(&app);
     {
         let Ok(mut i) = state.0.lock() else { return };
-        if i.devices.get(&peer.device_id).is_some_and(|d| d.tx.is_some()) {
-            return; // already connected through the other direction
-        }
         let d = i.devices.entry(peer.device_id.clone()).or_default();
+        // A newer connection wins. The old one may be a dead socket the phone left
+        // behind (Wi-Fi switch, sleep), which would otherwise block reconnecting
+        // until TCP noticed, possibly many minutes later.
+        if let Some(old) = d.close.take() {
+            let _ = old.send(());
+        }
         d.name = peer.name.clone();
         d.ip = Some(ip);
         d.tx = Some(tx);
+        d.link_id = link_id;
+        d.close = Some(close_tx);
         d.cert = Some(cert);
         i.status = "Connected".into();
     }
@@ -458,7 +478,12 @@ where
     }
 
     let mut reader = BufReader::new(reader);
-    while let Ok(Some(line)) = read_line_limited(&mut reader, MAX_LINE).await {
+    loop {
+        let line = tokio::select! {
+            r = read_line_limited(&mut reader, MAX_LINE) => r,
+            _ = &mut close_rx => break, // replaced by a newer link
+        };
+        let Ok(Some(line)) = line else { break };
         if let Some(packet) = Packet::parse(&line) {
             handle_packet(&app, &peer.device_id, ip, packet).await;
         }
@@ -467,7 +492,11 @@ where
     writer_task.abort();
     if let Ok(mut i) = svc(&app).0.lock() {
         if let Some(d) = i.devices.get_mut(&peer.device_id) {
+            if d.link_id != link_id {
+                return; // a newer link owns this device now
+            }
             d.tx = None;
+            d.close = None;
             d.incoming_pair = false;
             d.pending_pair = false;
         }

@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from "motion/react";
-import { useMemo, useCallback, useState } from "react";
+import { forwardRef, useMemo, useCallback, useState } from "react";
 import type { SystemNotification } from "../../../hooks/useNotifications";
 import { notificationAnimations, microInteractions, PILL_DURATION_FAST, gpuLayerHints, prefersReducedMotion } from "../animations";
 
@@ -372,7 +372,11 @@ interface NotificationCardProps {
   onActivate?: (id: number) => void;
 }
 
-export function NotificationCard({ notification, onDismiss, onActivate }: NotificationCardProps) {
+// forwardRef: AnimatePresence mode="popLayout" measures exiting children through a ref.
+export const NotificationCard = forwardRef<HTMLDivElement, NotificationCardProps>(function NotificationCard(
+  { notification, onDismiss, onActivate },
+  ref,
+) {
   // Memoize formatted time to avoid recalculation
   const formattedTime = useMemo(() => {
     const now = Date.now();
@@ -390,6 +394,7 @@ export function NotificationCard({ notification, onDismiss, onActivate }: Notifi
 
   return (
     <motion.div
+      ref={ref}
       className="bg-white/5 rounded-md p-2 hover:bg-white/[0.08] transition-colors group cursor-pointer"
       layout
       initial={{ opacity: 0, y: 10 }}
@@ -470,7 +475,7 @@ export function NotificationCard({ notification, onDismiss, onActivate }: Notifi
       </div>
     </motion.div>
   );
-}
+});
 
 // =============================================================================
 // Notifications List

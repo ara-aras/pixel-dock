@@ -682,9 +682,12 @@ export function Pill() {
       // When collapsed with no toast, use exact pill dimensions to avoid blocking clicks below
       const extraHeight = isExpanded ? 100 : (showNotificationToast ? 160 : 0);
       const h = pillHeight + extraHeight;
-      const ok = await tauriInvoke("resize_and_center", { width: w, height: h });
-      if (ok === null) {
-        console.error("Failed to resize/position window");
+      // The command returns () on success, which arrives as null, so null is not a
+      // failure (the old check logged an error on every resize). Real failures throw.
+      try {
+        await tauriInvoke("resize_and_center", { width: w, height: h });
+      } catch (error) {
+        console.error("Failed to resize/position window", error);
       }
     };
 

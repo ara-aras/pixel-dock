@@ -1,6 +1,7 @@
 import { fireAndForget } from "../../lib/fireAndForget";
 import { tauriInvoke } from "../../lib/tauri";
 import type { AerieSettingsData } from "../../hooks/useSettings";
+import { useHotkeys } from "../hooks/useHotkeys";
 import { useAerieThemeContext } from "../theme/ThemeContext";
 import type { AerieTabProps } from "./types";
 
@@ -91,6 +92,11 @@ function Section({ title, accent, children }: { title: string; accent: string; c
 export function AerieSettingsTab({ accentColor, settings, updateSettings }: AerieTabProps) {
   const aerie = settings.aerie;
   const material = aerie.theme === "material";
+  const hotkeys = useHotkeys().list;
+  // Live list (what actually registered); the static one only before it loads.
+  const shortcutRows: ReadonlyArray<readonly [string | null, string]> = hotkeys.length
+    ? hotkeys.map((h) => [h.keys, h.what] as const)
+    : SHORTCUTS;
   const set = (patch: Partial<AerieSettingsData>) =>
     fireAndForget(updateSettings({ aerie: patch }), "aerie settings change");
 
@@ -211,10 +217,10 @@ export function AerieSettingsTab({ accentColor, settings, updateSettings }: Aeri
       </Section>
 
       <Section title="Shortcuts" accent={accentColor}>
-        {SHORTCUTS.map(([keys, what]) => (
-          <div key={keys} className="flex justify-between gap-2 text-[11px]">
-            <kbd className="font-mono text-white/85">{keys}</kbd>
-            <span className="text-white/60">{what}</span>
+        {shortcutRows.map(([keys, what]) => (
+          <div key={what} className="flex justify-between gap-2 text-[11px]">
+            <kbd className={`font-mono ${keys ? "text-white/85" : "text-red-400"}`}>{keys ?? "taken by another app"}</kbd>
+            <span className="text-white/60 text-right">{what}</span>
           </div>
         ))}
       </Section>

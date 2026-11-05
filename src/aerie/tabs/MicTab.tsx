@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { fireAndForget } from "../../lib/fireAndForget";
+import { useHotkeys } from "../hooks/useHotkeys";
 import { useMicState } from "../hooks/useMicState";
 import { MaterialIcon } from "../theme/MaterialIcon";
 import { useAerieThemeContext } from "../theme/ThemeContext";
@@ -9,6 +10,7 @@ import type { AerieTabProps } from "./types";
 export function MicTab(_props: AerieTabProps) {
   const { isMaterial } = useAerieThemeContext();
   const [mic, setMuted] = useMicState(2000);
+  const hotkey = useHotkeys().label("mic");
   const video = useRef<HTMLVideoElement>(null);
   const [camOn, setCamOn] = useState(false);
   const [camError, setCamError] = useState<string | null>(null);
@@ -59,7 +61,9 @@ export function MicTab(_props: AerieTabProps) {
         </span>
       </button>
       <p className="px-1 text-[10px] text-white/55">
-        Ctrl+Alt+M: tap to mute or unmute. While muted, hold it to talk; let go to mute again.
+        {hotkey
+          ? `${hotkey}: tap to mute or unmute. While muted, hold it to talk; let go to mute again.`
+          : "No shortcut: every combination Aerie tries is used by another app. The button above still works."}
       </p>
 
       <div className={`flex flex-col gap-1.5 p-2 ${isMaterial ? "rounded-2xl bg-surface-container-high" : "rounded-lg bg-white/5"}`}>

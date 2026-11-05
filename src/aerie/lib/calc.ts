@@ -22,9 +22,27 @@ math.import(
   { override: true },
 );
 
+const TEMP: Record<string, string> = { f: "degF", c: "degC", k: "K" };
+const tempUnit = (letter: string) => TEMP[letter.toLowerCase()] ?? letter;
+
+/**
+ * Temperatures the way people type them ("100 f to c", "30°C in F", "300 kelvin to
+ * celsius") -> mathjs units (degF, degC, K). A bare f/c/k is only read as a
+ * temperature right before or after "to", so "5 c" or "2 k" elsewhere are untouched.
+ */
+function temperatures(input: string): string {
+  return input
+    .replace(/\bfahrenheit\b/gi, "degF")
+    .replace(/\b(celsius|centigrade)\b/gi, "degC")
+    .replace(/\bkelvin\b/gi, "K")
+    .replace(/°\s*([fck])\b/gi, (_, l: string) => tempUnit(l))
+    .replace(/(\d)\s*([fck])(?=\s+(?:to|in)\s)/gi, (_, d: string, l: string) => `${d} ${tempUnit(l)}`)
+    .replace(/\b(to|in)\s+([fck])\s*$/i, (_, w: string, l: string) => `${w} ${tempUnit(l)}`);
+}
+
 /** Turn plain-language input into something mathjs understands. */
 export function normalize(input: string): string {
-  return input
+  return temperatures(input)
     .replace(/(\d+(?:\.\d+)?)\s*%\s*of\s+(.+)/gi, "(($1)/100)*($2)")
     .replace(/\s+plus\s+/gi, " + ")
     .replace(/\s+minus\s+/gi, " - ")
@@ -40,7 +58,7 @@ export function calculate(input: string): string | null {
   try {
     const result = evaluate(normalize(text));
     if (result === undefined || typeof result === "function") return null;
-    return math.format(result, { precision: 12 });
+    return math.format(result, { precision: 12 }).replace(/\bdegC\b/g, "°C").replace(/\bdegF\b/g, "°F");
   } catch {
     return null;
   }

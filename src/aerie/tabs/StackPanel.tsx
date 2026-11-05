@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { fireAndForget } from "../../lib/fireAndForget";
 import { useAerieEvent } from "../hooks/useAerieEvent";
+import { useHotkeys } from "../hooks/useHotkeys";
 import { clearStack, getStack, removeFromStack, setCollecting, type StackState } from "../lib/pasteStack";
 import { MaterialIcon } from "../theme/MaterialIcon";
 import { useAerieThemeContext } from "../theme/ThemeContext";
@@ -9,6 +10,7 @@ import { useAerieThemeContext } from "../theme/ThemeContext";
 export function StackPanel() {
   const { isMaterial } = useAerieThemeContext();
   const [stack, setStack] = useState<StackState>({ collecting: false, items: [] });
+  const keys = useHotkeys();
   const load = useCallback(() => void getStack().then(setStack), []);
 
   useEffect(load, [load]);
@@ -21,7 +23,7 @@ export function StackPanel() {
       <div className={`flex items-center justify-between gap-2 px-2 py-1.5 ${card}`}>
         <div className="flex flex-col">
           <span className="text-[12px] text-white">Collect copies</span>
-          <span className="text-[10px] text-white/55">Every copy joins the stack · Ctrl+Alt+C</span>
+          <span className="text-[10px] text-white/55">Every copy joins the stack{keys.label("stack_collect") ? ` · ${keys.label("stack_collect")}` : ""}</span>
         </div>
         <button
           type="button"
@@ -42,7 +44,7 @@ export function StackPanel() {
       </div>
 
       <p className="px-1 text-[10px] text-white/55">
-        Ctrl+Alt+V pastes the next item into the app you are in, then moves on.
+        {keys.label("stack_paste") ?? "The paste shortcut"} pastes the next item into the app you are in, then moves on.
       </p>
 
       {stack.items.length === 0 ? (

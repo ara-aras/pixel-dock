@@ -88,6 +88,40 @@ pub fn is_blocked_source(exe: Option<&str>, never_record: &[String]) -> bool {
     PASSWORD_MANAGERS.contains(&exe.as_str()) || never_record.iter().any(|n| n.eq_ignore_ascii_case(&exe))
 }
 
+/// Dedupe hash of captured content (same value `store` uses for the UNIQUE column).
+pub fn content_hash(content: &Content) -> String {
+    match content {
+        Content::Text(text) => fnv1a(&[b"text", text.as_bytes()]),
+        Content::Files(paths) => fnv1a(&[b"files", paths.join("\n").as_bytes()]),
+        Content::Image(bytes) => fnv1a(&[b"image", bytes]),
+    }
+}
+
+/// Remembers the last copy we refused because of its source app. Windows often
+/// announces the same data twice: once from the app, then again when OLE flushes
+/// the clipboard as the app exits, by which time the owner is gone (source
+/// unknown). Without this the second announcement would record the secret.
+///
+/// The same type also drops plain repeats: one .NET/OLE copy can raise two or
+/// three clipboard updates, which would otherwise be sent to the phone (and the
+/// paste stack) once per update.
+pub struct RecentHash {
+    last: Option<(String, i64)>,
+    window_ms: i64,
+}
+
+impl RecentHash {
+    pub fn new(window_ms: i64) -> Self {
+        Self { last: None, window_ms }
+    }
+    pub fn remember(&mut self, hash: String, now: i64) {
+        self.last = Some((hash, now));
+    }
+    pub fn is_echo(&self, hash: &str, now: i64) -> bool {
+        matches!(&self.last, Some((h, t)) if h == hash && now - t <= self.window_ms)
+    }
+}
+
 pub struct NewClip<'a> {
     pub kind: &'a str,
     pub text: Option<&'a str>,
@@ -159,7 +193,7 @@ pub fn store(conn: &Connection, content: &Content, source_app: Option<&str>, now
                 return Ok(None);
             }
             let kind = if is_link(text) { "link" } else { "text" };
-            let hash = fnv1a(&[b"text", text.as_bytes()]);
+            let hash = content_hash(content);
             upsert_clip(conn, &NewClip { kind, text: Some(text), image_file: None, hash: &hash, source_app, now })
                 .map_err(err)?
         }
@@ -168,7 +202,7 @@ pub fn store(conn: &Connection, content: &Content, source_app: Option<&str>, now
                 return Ok(None);
             }
             let joined = paths.join("\n");
-            let hash = fnv1a(&[b"files", joined.as_bytes()]);
+            let hash = content_hash(content);
             upsert_clip(conn, &NewClip { kind: "files", text: Some(&joined), image_file: None, hash: &hash, source_app, now })
                 .map_err(err)?
         }
@@ -176,7 +210,7 @@ pub fn store(conn: &Connection, content: &Content, source_app: Option<&str>, now
             if bytes.is_empty() || bytes.len() > MAX_IMAGE_BYTES {
                 return Ok(None);
             }
-            let hash = fnv1a(&[b"image", bytes]);
+            let hash = content_hash(content);
             let file = format!("{hash}.bmp");
             let dir = clips_dir();
             std::fs::create_dir_all(&dir).map_err(err)?;
@@ -324,21 +358,36 @@ pub fn start_watcher(app: AppHandle) {
                     return;
                 }
             };
+            let mut blocked_echo = RecentHash::new(5_000);
+            let mut repeat = RecentHash::new(1_500);
             loop {
                 match monitor.recv() {
                     Ok(true) => {
+                        // Who copied it: ask now, before the wait. GetClipboardOwner does
+                        // not open the clipboard, and a short-lived copier (a CLI, a
+                        // password manager's helper) may be gone 200 ms later, which would
+                        // leave the source unknown and skip the never-record check.
+                        let early_source = win::owner_exe();
                         // Let the copying app finish writing all its formats before we
                         // open the clipboard. Reading too soon makes the copier's own
                         // follow-up clipboard calls fail (seen with PowerShell/.NET at 60 ms).
                         std::thread::sleep(std::time::Duration::from_millis(200));
-                        let source = win::owner_exe();
+                        let source = early_source.or_else(win::owner_exe);
                         if let Some(content) = win::read() {
-                            let stored = app
-                                .state::<Db>()
-                                .0
-                                .lock()
-                                .map_err(err)
-                                .and_then(|conn| store(&conn, &content, source.as_deref(), now_ms()));
+                            let now = now_ms();
+                            let hash = content_hash(&content);
+                            if blocked_echo.is_echo(&hash, now) || repeat.is_echo(&hash, now) {
+                                continue;
+                            }
+                            repeat.remember(hash.clone(), now);
+                            let db = app.state::<Db>();
+                            let stored = db.0.lock().map_err(err).and_then(|conn| {
+                                if is_blocked_source(source.as_deref(), &kv_list(&conn, "clip.never_record")) {
+                                    blocked_echo.remember(hash.clone(), now);
+                                    return Ok(None);
+                                }
+                                store(&conn, &content, source.as_deref(), now)
+                            });
                             match stored {
                                 Ok(Some(id)) => {
                                     let _ = app.emit(CLIPS_CHANGED, ());
@@ -621,6 +670,13 @@ mod tests {
         let conn = db.0.lock().unwrap();
         assert!(store(&conn, &Content::Text("secret".into()), Some("1Password.exe"), 1).unwrap().is_none());
         assert!(store(&conn, &Content::Text("   ".into()), None, 1).unwrap().is_none());
+        let mut echo = RecentHash::new(5_000);
+        let h = content_hash(&Content::Text("secret".into()));
+        assert!(!echo.is_echo(&h, 0));
+        echo.remember(h.clone(), 1_000);
+        assert!(echo.is_echo(&h, 3_000), "re-announcement right after a block is skipped");
+        assert!(!echo.is_echo(&h, 7_000), "same text copied much later is a new copy");
+        assert!(!echo.is_echo(&content_hash(&Content::Text("other".into())), 2_000));
         conn.execute("INSERT INTO kv (key, value) VALUES ('clip.paused', '1')", []).unwrap();
         assert!(store(&conn, &Content::Text("hello".into()), None, 1).unwrap().is_none());
         assert_eq!(count(&conn), 0);

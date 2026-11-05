@@ -33,35 +33,72 @@ enum Hotkey {
 pub const VOICE_EVENT: &str = "aerie://voice";
 pub const PROMPTER_EVENT: &str = "aerie://prompter";
 
+/// One action with the key combinations to try, in order. The first one Windows
+/// grants is used; the rest are fallbacks for when another app already owns it.
+struct Binding {
+    id: &'static str,
+    what: &'static str,
+    hotkey: Hotkey,
+    keys: Vec<Shortcut>,
+}
+
 /// The shortcut table. Ctrl+Alt+<key> are Aerie's; the Alt+Shift ones are the
 /// mappings PILLAR reserved but never wired up (its function only logged them).
 /// Teleprompter speed uses Ctrl+Alt+Shift+Up/Down because Ctrl+Alt+arrows rotate
 /// the screen on many Intel graphics drivers.
-fn hotkeys() -> Vec<(Shortcut, Hotkey)> {
+fn bindings() -> Vec<Binding> {
     let ctrl_alt = Some(Modifiers::CONTROL | Modifiers::ALT);
     let ctrl_alt_shift = Some(Modifiers::CONTROL | Modifiers::ALT | Modifiers::SHIFT);
+    let alt_shift = Some(Modifiers::ALT | Modifiers::SHIFT);
+    let b = |id, what, hotkey, keys| Binding { id, what, hotkey, keys };
     vec![
-        (Shortcut::new(ctrl_alt, Code::KeyN), Hotkey::ToggleVisibility),
-        (Shortcut::new(ctrl_alt, Code::KeyM), Hotkey::MicMute),
-        (Shortcut::new(ctrl_alt, Code::KeyC), Hotkey::StackToggleCollect),
-        (Shortcut::new(ctrl_alt, Code::KeyV), Hotkey::StackPasteNext),
-        (Shortcut::new(ctrl_alt, Code::KeyR), Hotkey::Frontend(VOICE_EVENT, "toggle")),
-        (Shortcut::new(ctrl_alt, Code::KeyP), Hotkey::Frontend(PROMPTER_EVENT, "toggle")),
-        (Shortcut::new(ctrl_alt_shift, Code::ArrowUp), Hotkey::Frontend(PROMPTER_EVENT, "faster")),
-        (Shortcut::new(ctrl_alt_shift, Code::ArrowDown), Hotkey::Frontend(PROMPTER_EVENT, "slower")),
-        (
-            Shortcut::new(Some(Modifiers::ALT | Modifiers::SHIFT), Code::Space),
-            Hotkey::Action(WorkflowActionId::ToggleExpand),
+        b("visibility", "Hide or show the whole overlay", Hotkey::ToggleVisibility, vec![Shortcut::new(ctrl_alt, Code::KeyN)]),
+        b(
+            "mic",
+            "Mute or unmute the mic (hold to talk while muted)",
+            Hotkey::MicMute,
+            vec![
+                Shortcut::new(ctrl_alt, Code::KeyM),
+                Shortcut::new(ctrl_alt_shift, Code::KeyM),
+                Shortcut::new(ctrl_alt, Code::KeyK),
+                Shortcut::new(ctrl_alt, Code::KeyQ),
+            ],
         ),
-        (
-            Shortcut::new(Some(Modifiers::ALT | Modifiers::SHIFT), Code::KeyP),
-            Hotkey::Action(WorkflowActionId::OpenProductivityTab),
+        b("stack_collect", "Paste stack: start or stop collecting", Hotkey::StackToggleCollect, vec![Shortcut::new(ctrl_alt, Code::KeyC)]),
+        b("stack_paste", "Paste stack: paste the next item", Hotkey::StackPasteNext, vec![Shortcut::new(ctrl_alt, Code::KeyV)]),
+        b(
+            "voice",
+            "Start or stop a voice memo",
+            Hotkey::Frontend(VOICE_EVENT, "toggle"),
+            vec![Shortcut::new(ctrl_alt, Code::KeyR), Shortcut::new(ctrl_alt_shift, Code::KeyR)],
         ),
-        (
-            Shortcut::new(Some(Modifiers::ALT | Modifiers::SHIFT), Code::KeyA),
-            Hotkey::Action(WorkflowActionId::OpenPrismTab),
-        ),
+        b("prompter", "Teleprompter: show, play or pause", Hotkey::Frontend(PROMPTER_EVENT, "toggle"), vec![Shortcut::new(ctrl_alt, Code::KeyP)]),
+        b("prompter_faster", "Teleprompter: faster", Hotkey::Frontend(PROMPTER_EVENT, "faster"), vec![Shortcut::new(ctrl_alt_shift, Code::ArrowUp)]),
+        b("prompter_slower", "Teleprompter: slower", Hotkey::Frontend(PROMPTER_EVENT, "slower"), vec![Shortcut::new(ctrl_alt_shift, Code::ArrowDown)]),
+        b("panel", "Open or close the panel", Hotkey::Action(WorkflowActionId::ToggleExpand), vec![Shortcut::new(alt_shift, Code::Space)]),
+        b("focus", "Open Focus (tasks, notes)", Hotkey::Action(WorkflowActionId::OpenProductivityTab), vec![Shortcut::new(alt_shift, Code::KeyP)]),
+        b("prism", "Open Prism AI", Hotkey::Action(WorkflowActionId::OpenPrismTab), vec![Shortcut::new(alt_shift, Code::KeyA)]),
     ]
+}
+
+/// Which combination each binding actually got (id -> shortcut), filled by `register`.
+static REGISTERED: std::sync::Mutex<Vec<(&'static str, Shortcut)>> = std::sync::Mutex::new(Vec::new());
+
+/// "Ctrl+Alt+Shift+M" style label for the UI.
+pub fn shortcut_label(s: &Shortcut) -> String {
+    let mut parts: Vec<String> = Vec::new();
+    for (m, name) in [(Modifiers::CONTROL, "Ctrl"), (Modifiers::ALT, "Alt"), (Modifiers::SHIFT, "Shift"), (Modifiers::SUPER, "Win")] {
+        if s.mods.contains(m) {
+            parts.push(name.into());
+        }
+    }
+    let key = format!("{:?}", s.key);
+    parts.push(match s.key {
+        Code::ArrowUp => "↑".into(),
+        Code::ArrowDown => "↓".into(),
+        _ => key.strip_prefix("Key").or_else(|| key.strip_prefix("Digit")).unwrap_or(&key).to_string(),
+    });
+    parts.join("+")
 }
 
 /// Plugin that dispatches the shortcut table. Registration happens in `register`.
@@ -69,8 +106,8 @@ pub fn global_shortcut_plugin() -> tauri::plugin::TauriPlugin<tauri::Wry> {
     tauri_plugin_global_shortcut::Builder::new()
         .with_handler(|app, shortcut, event| {
             let pressed = event.state() == ShortcutState::Pressed;
-            for (candidate, hotkey) in hotkeys() {
-                if &candidate != shortcut {
+            for Binding { hotkey, keys, .. } in bindings() {
+                if !keys.contains(shortcut) {
                     continue;
                 }
                 match (hotkey, pressed) {
@@ -91,14 +128,55 @@ pub fn global_shortcut_plugin() -> tauri::plugin::TauriPlugin<tauri::Wry> {
         .build()
 }
 
-/// Register every shortcut. One taken by another app is logged and skipped, so the
-/// rest (and the tray menu) keep working.
+/// Register every shortcut, falling back to the next combination when one is taken
+/// by another app. A binding with none free is logged and skipped, so the rest
+/// (and the tray menu) keep working.
 pub fn register(app: &AppHandle) {
-    for (shortcut, _) in hotkeys() {
-        if let Err(err) = app.global_shortcut().register(shortcut) {
-            eprintln!("[AERIE] could not register shortcut {shortcut:?}: {err}");
+    let mut got = Vec::new();
+    for Binding { id, keys, .. } in bindings() {
+        let mut errors = Vec::new();
+        let chosen = keys.into_iter().find(|k| match app.global_shortcut().register(*k) {
+            Ok(()) => true,
+            Err(err) => {
+                errors.push(format!("{} ({err})", shortcut_label(k)));
+                false
+            }
+        });
+        match chosen {
+            Some(k) => {
+                if !errors.is_empty() {
+                    eprintln!("[AERIE] {id}: using {} because {} is taken", shortcut_label(&k), errors.join(", "));
+                }
+                got.push((id, k));
+            }
+            None => eprintln!("[AERIE] {id}: no free shortcut: {}", errors.join(", ")),
         }
     }
+    if let Ok(mut r) = REGISTERED.lock() {
+        *r = got;
+    }
+}
+
+#[derive(serde::Serialize)]
+pub struct HotkeyInfo {
+    id: &'static str,
+    what: &'static str,
+    /// The combination in use, or None when every option was taken.
+    keys: Option<String>,
+}
+
+/// The shortcuts as actually registered, so the UI never shows one that does not work.
+#[tauri::command]
+pub fn aerie_hotkeys() -> Vec<HotkeyInfo> {
+    let registered = REGISTERED.lock().map(|r| r.clone()).unwrap_or_default();
+    bindings()
+        .into_iter()
+        .map(|b| HotkeyInfo {
+            id: b.id,
+            what: b.what,
+            keys: registered.iter().find(|(id, _)| *id == b.id).map(|(_, k)| shortcut_label(k)),
+        })
+        .collect()
 }
 
 /// One startup hook for everything Aerie adds, called from PILLAR's `setup`:
@@ -109,6 +187,10 @@ pub fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
     app.manage(crate::aerie_db::open(&dir.join("aerie.db"))?);
     app.manage(crate::aerie_phone::PhoneService::default());
     crate::aerie_clipboard::start_watcher(app.handle().clone());
+    // Voice memos / camera mirror: no browser-style permission popup for our own page.
+    if let Some(main) = app.get_webview_window("main") {
+        crate::aerie_webview::allow_own_media(&main);
+    }
     // Phone link only starts if the user turned it on (it listens on the LAN).
     crate::aerie_phone::start_if_enabled(app.handle());
     Ok(())
@@ -178,10 +260,20 @@ mod tests {
     #[test]
     fn every_shortcut_is_distinct() {
         // Two entries on the same combination would make one of them unreachable.
-        let keys: Vec<_> = super::hotkeys().into_iter().map(|(s, _)| s.to_string()).collect();
+        // Fallbacks count too: a fallback equal to another action's key would steal it.
+        let keys: Vec<_> = super::bindings().into_iter().flat_map(|b| b.keys).map(|s| s.to_string()).collect();
         let mut unique = keys.clone();
         unique.sort();
         unique.dedup();
         assert_eq!(keys.len(), unique.len(), "duplicate shortcut in table: {keys:?}");
+    }
+
+    #[test]
+    fn shortcut_labels_read_like_windows() {
+        use tauri_plugin_global_shortcut::{Code, Modifiers, Shortcut};
+        let l = |m, c| super::shortcut_label(&Shortcut::new(Some(m), c));
+        assert_eq!(l(Modifiers::CONTROL | Modifiers::ALT, Code::KeyM), "Ctrl+Alt+M");
+        assert_eq!(l(Modifiers::CONTROL | Modifiers::ALT | Modifiers::SHIFT, Code::ArrowUp), "Ctrl+Alt+Shift+↑");
+        assert_eq!(l(Modifiers::ALT | Modifiers::SHIFT, Code::Space), "Alt+Shift+Space");
     }
 }

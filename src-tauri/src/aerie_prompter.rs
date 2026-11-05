@@ -29,13 +29,23 @@ fn set_capture_hidden(_window: &tauri::WebviewWindow, _hidden: bool) -> Result<(
 }
 
 /// Open (or focus) the teleprompter window for a script.
+///
+/// `async` on purpose: a synchronous command runs on the main thread, and building
+/// a WebView2 window there deadlocks on Windows (the new webview needs that thread).
 #[tauri::command]
-pub fn aerie_prompter_open(app: AppHandle, script_id: String, hide_from_capture: bool) -> Result<(), String> {
+pub async fn aerie_prompter_open(app: AppHandle, script_id: String, hide_from_capture: bool) -> Result<(), String> {
     if !script_id.chars().all(|c| c.is_ascii_alphanumeric() || c == '-') {
         return Err("invalid script id".into());
     }
     if let Some(existing) = app.get_webview_window(LABEL) {
-        let _ = existing.close();
+        // Reuse the open window: close() is asynchronous, so closing and rebuilding
+        // under the same label right away can fail with "label already exists".
+        // The id is checked above, so it is safe inside this script string.
+        existing
+            .eval(format!("location.hash = 'prompter/{script_id}'; location.reload();"))
+            .map_err(|e| e.to_string())?;
+        set_capture_hidden(&existing, hide_from_capture)?;
+        return Ok(());
     }
     let url = WebviewUrl::App(format!("index.html#prompter/{script_id}").into());
     let mut builder = WebviewWindowBuilder::new(&app, LABEL, url)

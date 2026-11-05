@@ -47,7 +47,7 @@ export async function startRecording(): Promise<void> {
   if (state.recording) return;
   const mic = await tauriInvoke<{ available: boolean; muted: boolean }>("aerie_mic_state", undefined, { silent: true }).catch(() => null);
   if (mic && !mic.available) return emit({ error: "No microphone found." });
-  if (mic?.muted) return emit({ error: "Your microphone is muted (Ctrl+Alt+M). Unmute it to record." });
+  if (mic?.muted) return emit({ error: "Your microphone is muted. Unmute it (Mic tab or its shortcut) to record." });
 
   try {
     stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } });
